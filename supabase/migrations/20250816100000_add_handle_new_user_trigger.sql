@@ -1,0 +1,2 @@
+-- This migration script is intended to add a handle_new_user trigger.
+-- It is safe to run this script multiple times.

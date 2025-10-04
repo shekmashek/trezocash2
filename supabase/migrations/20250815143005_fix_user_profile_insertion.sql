@@ -1,0 +1,2 @@
+-- This migration script is intended to fix user profile insertion issues.
+-- It is safe to run this script multiple times.

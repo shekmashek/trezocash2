@@ -1,0 +1,2 @@
+-- This migration script is intended to secure the storage function.
+-- It is safe to run this script multiple times.

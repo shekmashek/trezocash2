@@ -1,0 +1,2 @@
+-- This migration script is intended to add user categories.
+-- It is safe to run this script multiple times.

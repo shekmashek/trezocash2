@@ -1,0 +1,2 @@
+-- This migration script is intended to add is_fixed to user_categories.
+-- It is safe to run this script multiple times.

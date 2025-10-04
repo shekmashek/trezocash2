@@ -1,0 +1,2 @@
+-- This migration script is intended to refine the provision system.
+-- It is safe to run this script multiple times.

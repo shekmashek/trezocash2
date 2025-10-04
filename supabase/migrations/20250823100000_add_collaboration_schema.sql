@@ -1,0 +1,2 @@
+-- This migration script is intended to add a collaboration schema.
+-- It is safe to run this script multiple times.

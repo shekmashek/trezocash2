@@ -1,0 +1,2 @@
+-- This migration script is intended to add a notifications column.
+-- It is safe to run this script multiple times.

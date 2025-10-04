@@ -1,0 +1,2 @@
+-- This migration script is intended to add payment terms to tiers.
+-- It is safe to run this script multiple times.

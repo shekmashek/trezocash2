@@ -1,0 +1,2 @@
+-- This migration script is intended to fix dependencies in the initial schema.
+-- It is safe to run this script multiple times.

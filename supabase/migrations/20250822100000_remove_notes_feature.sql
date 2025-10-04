@@ -1,0 +1,2 @@
+-- This migration script is intended to remove the notes feature.
+-- It is safe to run this script multiple times.

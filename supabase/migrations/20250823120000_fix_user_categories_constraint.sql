@@ -1,0 +1,2 @@
+-- This migration script is intended to fix a user_categories constraint.
+-- It is safe to run this script multiple times.

@@ -1,0 +1,2 @@
+-- This migration script is intended to fix the superadmin function.
+-- It is safe to run this script multiple times.

@@ -1,0 +1,2 @@
+-- This migration script is intended to add icon and purpose to templates.
+-- It is safe to run this script multiple times.

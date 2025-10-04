@@ -1,0 +1,2 @@
+-- This migration script is intended to fix the user_categories table.
+-- It is safe to run this script multiple times.

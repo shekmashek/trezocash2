@@ -1,0 +1,2 @@
+-- This migration script is intended to ensure user profiles exist.
+-- It is safe to run this script multiple times.

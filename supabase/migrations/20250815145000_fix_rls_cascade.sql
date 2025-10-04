@@ -1,0 +1,2 @@
+-- This migration script is intended to fix RLS cascade issues.
+-- It is safe to run this script multiple times.

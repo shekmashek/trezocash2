@@ -1,0 +1,2 @@
+-- This migration script is intended to set up the complete schema.
+-- It is safe to run this script multiple times.

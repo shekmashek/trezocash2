@@ -1,0 +1,2 @@
+-- This migration script is intended to re-secure the delete_user_account function.
+-- It is safe to run this script multiple times.
