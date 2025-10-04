@@ -1,0 +1,24 @@
+DROP TYPE IF EXISTS public.tax_base_type CASCADE;
+CREATE TYPE public.tax_base_type AS ENUM ('revenue', 'profit', 'salary');
+
+DROP TYPE IF EXISTS public.tax_declaration_periodicity CASCADE;
+CREATE TYPE public.tax_declaration_periodicity AS ENUM ('monthly', 'quarterly', 'annually');
+
+CREATE TABLE IF NOT EXISTS public.tax_configs (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+    name text NOT NULL,
+    rate numeric NOT NULL,
+    base_type public.tax_base_type NOT NULL,
+    declaration_periodicity public.tax_declaration_periodicity NOT NULL,
+    payment_delay_months integer NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+ALTER TABLE public.tax_configs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own tax configs"
+ON public.tax_configs
+FOR ALL
+USING (auth.uid() = user_id);

@@ -1,0 +1,168 @@
+import React, { useMemo } from 'react';
+import { useData } from '../context/DataContext';
+import { useUI } from '../context/UIContext';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Layers, Users } from 'lucide-react';
+import Avatar from '../components/Avatar';
+import { motion } from 'framer-motion';
+
+const ProjectCard = ({ project, onClick, collaborators, allProfiles, projects }) => {
+
+    const projectUsers = useMemo(() => {
+        if (!project || !collaborators || !allProfiles) return [];
+
+        const usersMap = new Map();
+
+        const addUser = (userId, role) => {
+            if (!userId || usersMap.has(userId)) return;
+            const profile = allProfiles.find(p => p.id === userId);
+            if (profile) {
+                usersMap.set(userId, { ...profile, role });
+            }
+        };
+
+        if (project.id.startsWith('consolidated_view_')) {
+             project.project_ids.forEach(projectId => {
+                const p = projects.find(pr => pr.id === projectId);
+                if (p) addUser(p.user_id, 'Propriétaire');
+                collaborators.forEach(c => {
+                    if (c.projectIds && c.projectIds.includes(projectId)) {
+                        addUser(c.user_id, c.role === 'editor' ? 'Éditeur' : 'Lecteur');
+                    }
+                });
+            });
+        } else {
+            addUser(project.user_id, 'Propriétaire');
+            collaborators.forEach(c => {
+                if (c.projectIds && c.projectIds.includes(project.id)) {
+                    addUser(c.user_id, c.role === 'editor' ? 'Éditeur' : 'Lecteur');
+                }
+            });
+        }
+        
+        return Array.from(usersMap.values());
+    }, [project, collaborators, allProfiles, projects]);
+
+    return (
+        <motion.button 
+            onClick={onClick}
+            className="bg-gradient-to-br from-blue-900 via-purple-900 to-gray-900 p-6 rounded-2xl shadow-lg text-left w-full h-full flex flex-col justify-between transition-all duration-300 hover:shadow-2xl hover:scale-105"
+            whileHover={{ y: -5 }}
+        >
+            <div>
+                <div className="flex items-center gap-3 mb-3">
+                    {project.isConsolidated ? 
+                        <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center"><Layers className="w-5 h-5 text-white" /></div> : 
+                        <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-lg font-bold text-white">{project.name[0].toUpperCase()}</div>
+                    }
+                    <h3 className="font-bold text-lg text-white truncate">{project.name}</h3>
+                </div>
+                 <p className="text-sm text-gray-300 mb-4 h-10 overflow-hidden">{project.description}</p>
+                {project.isShared && <span className="text-xs font-semibold bg-white/20 text-white px-2 py-0.5 rounded-full inline-block mb-3">Partagé</span>}
+                {project.isConsolidated && <span className="text-xs font-semibold bg-white/20 text-white px-2 py-0.5 rounded-full inline-block mb-3">Vue consolidée</span>}
+            </div>
+            <div className="flex items-center justify-end -space-x-2 mt-4">
+                {projectUsers.slice(0, 5).map(user => (
+                    <Avatar key={user.id} name={user.full_name} role={user.role} />
+                ))}
+                {projectUsers.length > 5 && (
+                    <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-white border-2 border-gray-900">
+                        +{projectUsers.length - 5}
+                    </div>
+                )}
+            </div>
+        </motion.button>
+    );
+};
+
+const ProjectsDashboardPage = () => {
+    const { dataState } = useData();
+    const { uiDispatch } = useUI();
+    const { projects, consolidatedViews, session, allProfiles, collaborators } = dataState;
+    const navigate = useNavigate();
+
+    const { myProjects, sharedProjects, consolidatedProjectViews } = useMemo(() => {
+        const my = projects.filter(p => !p.isArchived && p.user_id === session.user.id);
+        const shared = projects.filter(p => !p.isArchived && p.user_id !== session.user.id);
+        const consolidated = consolidatedViews.map(v => ({ ...v, isConsolidated: true }));
+        return { myProjects: my, sharedProjects: shared, consolidatedProjectViews: consolidated };
+    }, [projects, consolidatedViews, session.user.id]);
+
+    const handleProjectClick = (projectId) => {
+        uiDispatch({ type: 'SET_ACTIVE_PROJECT', payload: projectId });
+        navigate('/app/dashboard');
+    };
+
+    const handleNewProject = () => {
+        uiDispatch({ type: 'OPEN_NEW_PROJECT_MODAL' });
+    };
+
+    return (
+        <div className="p-6 sm:p-10">
+            <header className="flex justify-between items-center mb-10">
+                <h1 className="text-3xl font-bold text-gray-900">Mes Projets</h1>
+                <button 
+                    onClick={handleNewProject}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2"
+                >
+                    <Plus className="w-5 h-5" />
+                    Nouveau Projet
+                </button>
+            </header>
+
+            {consolidatedProjectViews.length > 0 && (
+                <section className="mb-12">
+                    <h2 className="text-xl font-semibold text-gray-700 mb-4 flex items-center gap-2"><Layers className="w-5 h-5" /> Vues Consolidées</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {consolidatedProjectViews.map(view => (
+                            <ProjectCard 
+                                key={view.id} 
+                                project={view} 
+                                onClick={() => handleProjectClick(`consolidated_view_${view.id}`)}
+                                collaborators={collaborators}
+                                allProfiles={allProfiles}
+                                projects={projects}
+                            />
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            <section className="mb-12">
+                <h2 className="text-xl font-semibold text-gray-700 mb-4">Mes Projets</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {myProjects.map(project => (
+                        <ProjectCard 
+                            key={project.id} 
+                            project={project} 
+                            onClick={() => handleProjectClick(project.id)}
+                            collaborators={collaborators}
+                            allProfiles={allProfiles}
+                            projects={projects}
+                        />
+                    ))}
+                </div>
+            </section>
+
+            {sharedProjects.length > 0 && (
+                <section>
+                    <h2 className="text-xl font-semibold text-gray-700 mb-4 flex items-center gap-2"><Users className="w-5 h-5" /> Projets Partagés</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {sharedProjects.map(project => (
+                            <ProjectCard 
+                                key={project.id} 
+                                project={{...project, isShared: true}} 
+                                onClick={() => handleProjectClick(project.id)}
+                                collaborators={collaborators}
+                                allProfiles={allProfiles}
+                                projects={projects}
+                            />
+                        ))}
+                    </div>
+                </section>
+            )}
+        </div>
+    );
+};
+
+export default ProjectsDashboardPage;

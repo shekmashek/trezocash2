@@ -1,0 +1,62 @@
+DROP FUNCTION IF EXISTS public.invite_collaborator(text,text,uuid[],text);
+
+CREATE OR REPLACE FUNCTION public.invite_collaborator(
+    p_invitee_email text,
+    p_project_ids uuid[],
+    p_role text,
+    p_permission_scope text
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_invitee_id uuid;
+    v_inviter_id uuid := auth.uid();
+    v_new_collaborator_id uuid;
+    v_new_collaborator json;
+BEGIN
+    -- Find the user to invite by email
+    SELECT id INTO v_invitee_id FROM auth.users WHERE email = p_invitee_email;
+
+    -- If user does not exist, return a specific message
+    IF v_invitee_id IS NULL THEN
+        RETURN json_build_object('message', 'User does not exist');
+    END IF;
+
+    -- Prevent inviting self
+    IF v_invitee_id = v_inviter_id THEN
+        RETURN json_build_object('error', 'Vous ne pouvez pas vous inviter vous-même.');
+    END IF;
+
+    -- Check if already a collaborator for any of these projects
+    IF EXISTS (
+        SELECT 1 FROM public.collaborators
+        WHERE user_id = v_invitee_id AND project_ids && p_project_ids
+    ) THEN
+        RETURN json_build_object('error', 'Cet utilisateur est déjà un collaborateur sur au moins un de ces projets.');
+    END IF;
+
+    -- Create the collaboration record
+    INSERT INTO public.collaborators (owner_id, user_id, email, role, permission_scope, project_ids, status)
+    VALUES (v_inviter_id, v_invitee_id, p_invitee_email, p_role, p_permission_scope, p_project_ids, 'accepted')
+    RETURNING id INTO v_new_collaborator_id;
+
+    -- Return the newly created collaborator record
+    SELECT json_build_object(
+        'id', c.id,
+        'owner_id', c.owner_id,
+        'user_id', c.user_id,
+        'email', c.email,
+        'role', c.role,
+        'status', c.status,
+        'project_ids', c.project_ids,
+        'permission_scope', c.permission_scope
+    )
+    INTO v_new_collaborator
+    FROM public.collaborators c
+    WHERE c.id = v_new_collaborator_id;
+
+    RETURN v_new_collaborator;
+END;
+$$;

@@ -1,0 +1,68 @@
+/*
+          # [Operation Name]
+          Set up tax module tables
+
+          ## Query Description: [This operation creates the necessary tables and types for the new tax management module. It is idempotent, meaning it will safely clean up any previous failed attempts before creating the structures, ensuring a stable state.]
+          
+          ## Metadata:
+          - Schema-Category: ["Structural"]
+          - Impact-Level: ["Medium"]
+          - Requires-Backup: [true]
+          - Reversible: [true]
+          
+          ## Structure Details:
+          [
+  "tax_configs",
+  "tax_base_type",
+  "tax_declaration_periodicity"
+]
+          
+          ## Security Implications:
+          - RLS Status: [Enabled]
+          - Policy Changes: [Yes]
+          - Auth Requirements: [Authenticated users]
+          
+          ## Performance Impact:
+          - Indexes: [Added]
+          - Triggers: [Not Modified]
+          - Estimated Impact: [Low. New tables will only be used by the new feature.]
+          */
+-- Drop existing objects if they exist to ensure a clean slate
+DROP TABLE IF EXISTS public.tax_configs CASCADE;
+DROP TYPE IF EXISTS public.tax_base_type;
+DROP TYPE IF EXISTS public.tax_declaration_periodicity;
+
+-- Create custom types for tax configuration
+CREATE TYPE public.tax_base_type AS ENUM ('revenue', 'profit', 'salary');
+CREATE TYPE public.tax_declaration_periodicity AS ENUM ('monthly', 'quarterly', 'annually');
+
+-- Create the tax_configs table
+CREATE TABLE public.tax_configs (
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    user_id uuid NOT NULL DEFAULT auth.uid(),
+    name text NOT NULL,
+    rate numeric NOT NULL DEFAULT 0,
+    base_type public.tax_base_type NOT NULL DEFAULT 'revenue'::public.tax_base_type,
+    declaration_periodicity public.tax_declaration_periodicity NOT NULL DEFAULT 'annually'::public.tax_declaration_periodicity,
+    payment_delay_months integer NOT NULL DEFAULT 1,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    updated_at timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT tax_configs_pkey PRIMARY KEY (id),
+    CONSTRAINT tax_configs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+);
+
+-- Enable Row Level Security
+ALTER TABLE public.tax_configs ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies
+CREATE POLICY "Enable read access for own tax configs" ON public.tax_configs
+FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Enable insert for own tax configs" ON public.tax_configs
+FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Enable update for own tax configs" ON public.tax_configs
+FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Enable delete for own tax configs" ON public.tax_configs
+FOR DELETE USING (auth.uid() = user_id);

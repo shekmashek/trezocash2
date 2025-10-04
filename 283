@@ -1,0 +1,40 @@
+/*
+          # [Operation Name]
+          Add onboarding tracking to profiles
+
+          ## Query Description: [This operation adds a new JSONB column 'onboardings_seen' to the 'profiles' table. This allows the application to track which feature-specific onboarding tutorials a user has completed for each project, ensuring tutorials are only shown once per project.]
+          
+          ## Metadata:
+          - Schema-Category: ["Structural"]
+          - Impact-Level: ["Low"]
+          - Requires-Backup: [false]
+          - Reversible: [true]
+          
+          ## Structure Details:
+          [
+  "profiles"
+]
+          
+          ## Security Implications:
+          - RLS Status: [Enabled]
+          - Policy Changes: [No]
+          - Auth Requirements: [Authenticated users]
+          
+          ## Performance Impact:
+          - Indexes: [Not Modified]
+          - Triggers: [Not Modified]
+          - Estimated Impact: [Low. The column is nullable and will not impact existing queries.]
+          */
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+    AND table_name = 'profiles'
+    AND column_name = 'onboardings_seen'
+  ) THEN
+    ALTER TABLE public.profiles
+    ADD COLUMN onboardings_seen jsonb;
+  END IF;
+END $$;

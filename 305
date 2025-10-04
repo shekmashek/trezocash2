@@ -1,0 +1,11 @@
+ALTER TABLE public.budget_entries
+ADD COLUMN IF NOT EXISTS currency TEXT,
+ADD COLUMN IF NOT EXISTS original_amount NUMERIC,
+ADD COLUMN IF NOT EXISTS amount_type TEXT,
+ADD COLUMN IF NOT EXISTS vat_rate_id UUID REFERENCES public.vat_rates(id),
+ADD COLUMN IF NOT EXISTS ht_amount NUMERIC,
+ADD COLUMN IF NOT EXISTS ttc_amount NUMERIC;
+
+ALTER TABLE public.actual_transactions
+ADD COLUMN IF NOT EXISTS currency TEXT,
+ADD COLUMN IF NOT EXISTS original_amount NUMERIC;

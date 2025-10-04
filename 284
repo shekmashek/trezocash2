@@ -1,0 +1,35 @@
+/*
+          # [Operation Name]
+          Add currency fields to budget and actual transactions
+
+          ## Query Description: [This operation adds currency-related columns to 'budget_entries' and 'actual_transactions' to support multi-currency features. It stores the original currency code and amount, allowing for accurate tracking and conversion.]
+          
+          ## Metadata:
+          - Schema-Category: ["Structural"]
+          - Impact-Level: ["Medium"]
+          - Requires-Backup: [true]
+          - Reversible: [true]
+          
+          ## Structure Details:
+          [
+  "budget_entries",
+  "actual_transactions"
+]
+          
+          ## Security Implications:
+          - RLS Status: [Enabled]
+          - Policy Changes: [No]
+          - Auth Requirements: [Authenticated users]
+          
+          ## Performance Impact:
+          - Indexes: [Not Modified]
+          - Triggers: [Not Modified]
+          - Estimated Impact: [Low. The new columns are nullable and will not affect existing queries until they are actively used.]
+          */
+-- Add currency columns to budget_entries
+ALTER TABLE public.budget_entries ADD COLUMN IF NOT EXISTS currency TEXT;
+ALTER TABLE public.budget_entries ADD COLUMN IF NOT EXISTS original_amount NUMERIC;
+
+-- Add currency columns to actual_transactions
+ALTER TABLE public.actual_transactions ADD COLUMN IF NOT EXISTS currency TEXT;
+ALTER TABLE public.actual_transactions ADD COLUMN IF NOT EXISTS original_amount NUMERIC;

@@ -1,0 +1,28 @@
+/*
+          # [Operation Name]
+          Add timezone to projects
+
+          ## Query Description: [This operation adds a 'timezone_offset' column to the 'projects' table, allowing each project to have its own timezone setting. This is crucial for accurate date-based calculations and reporting across different geographical locations.]
+          
+          ## Metadata:
+          - Schema-Category: ["Structural"]
+          - Impact-Level: ["Low"]
+          - Requires-Backup: [false]
+          - Reversible: [true]
+          
+          ## Structure Details:
+          [
+  "projects"
+]
+          
+          ## Security Implications:
+          - RLS Status: [Enabled]
+          - Policy Changes: [No]
+          - Auth Requirements: [Authenticated users]
+          
+          ## Performance Impact:
+          - Indexes: [Not Modified]
+          - Triggers: [Not Modified]
+          - Estimated Impact: [Low. The column is nullable and will not impact existing queries until it is actively used.]
+          */
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS timezone_offset INTEGER;

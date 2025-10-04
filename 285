@@ -1,0 +1,57 @@
+/*
+          # [Operation Name]
+          Add VAT details to budget entries
+
+          ## Query Description: [This operation adds columns to 'budget_entries' to store detailed VAT information, including the amount type (HT/TTC), the VAT rate ID, and the calculated HT/TTC amounts. This is crucial for accurate VAT tracking and reporting.]
+          
+          ## Metadata:
+          - Schema-Category: ["Structural"]
+          - Impact-Level: ["Medium"]
+          - Requires-Backup: [true]
+          - Reversible: [true]
+          
+          ## Structure Details:
+          [
+  "budget_entries"
+]
+          
+          ## Security Implications:
+          - RLS Status: [Enabled]
+          - Policy Changes: [No]
+          - Auth Requirements: [Authenticated users]
+          
+          ## Performance Impact:
+          - Indexes: [Not Modified]
+          - Triggers: [Not Modified]
+          - Estimated Impact: [Low. The new columns are nullable and will not affect existing queries until they are actively used.]
+          */
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name='budget_entries' AND column_name='amount_type'
+  ) THEN
+    ALTER TABLE public.budget_entries ADD COLUMN amount_type TEXT DEFAULT 'ttc';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name='budget_entries' AND column_name='vat_rate_id'
+  ) THEN
+    ALTER TABLE public.budget_entries ADD COLUMN vat_rate_id UUID REFERENCES public.vat_rates(id) ON DELETE SET NULL;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name='budget_entries' AND column_name='ht_amount'
+  ) THEN
+    ALTER TABLE public.budget_entries ADD COLUMN ht_amount NUMERIC;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name='budget_entries' AND column_name='ttc_amount'
+  ) THEN
+    ALTER TABLE public.budget_entries ADD COLUMN ttc_amount NUMERIC;
+  END IF;
+END $$;

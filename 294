@@ -1,0 +1,27 @@
+-- Add currency and original_amount to budget_entries
+ALTER TABLE public.budget_entries
+ADD COLUMN IF NOT EXISTS currency text,
+ADD COLUMN IF NOT EXISTS original_amount numeric;
+
+-- Add currency and original_amount to actual_transactions
+ALTER TABLE public.actual_transactions
+ADD COLUMN IF NOT EXISTS currency text,
+ADD COLUMN IF NOT EXISTS original_amount numeric;
+
+-- Update RLS policies if needed (assuming they are already correct for authenticated users)
+-- Example for budget_entries (repeat for actual_transactions if necessary)
+DROP POLICY IF EXISTS "Enable all operations for users based on user_id" ON public.budget_entries;
+CREATE POLICY "Enable all operations for users based on user_id"
+ON public.budget_entries
+FOR ALL
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Enable all operations for users based on user_id" ON public.actual_transactions;
+CREATE POLICY "Enable all operations for users based on user_id"
+ON public.actual_transactions
+FOR ALL
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);

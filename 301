@@ -1,0 +1,32 @@
+/*
+          # Add Description to Projects
+          This operation adds a 'description' column to the 'projects' table to store a short summary for each project.
+
+          ## Query Description: 
+          - This is a non-destructive operation that adds a new, nullable column.
+          - It will not affect any existing data.
+          - Existing projects will have a NULL value for this new column until it is updated.
+
+          ## Metadata:
+          - Schema-Category: "Structural"
+          - Impact-Level: "Low"
+          - Requires-Backup: false
+          - Reversible: true (The column can be dropped)
+
+          ## Structure Details:
+          - Table: public.projects
+          - Column Added: description (TEXT)
+
+          ## Security Implications:
+          - RLS Status: Unchanged
+          - Policy Changes: No
+          - Auth Requirements: None
+
+          ## Performance Impact:
+          - Indexes: None
+          - Triggers: None
+          - Estimated Impact: Negligible. Adding a nullable column is a fast metadata change.
+          */
+
+ALTER TABLE public.projects
+ADD COLUMN description TEXT;

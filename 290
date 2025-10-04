@@ -1,0 +1,32 @@
+/*
+# [Structural] Add Onboarding Tracking to Profiles
+This operation adds a new column `onboardings_seen` to the `profiles` table. This column will store a JSONB object to track which onboarding tutorials a user has completed for each project, preventing them from being shown repeatedly.
+
+## Query Description:
+- Adds the `onboardings_seen` column of type `jsonb` to the `public.profiles` table.
+- Sets a default value of an empty JSON object `{}` for new and existing profiles.
+- This change is non-destructive and safe to apply.
+
+## Metadata:
+- Schema-Category: "Structural"
+- Impact-Level: "Low"
+- Requires-Backup: false
+- Reversible: true (The column can be dropped)
+
+## Structure Details:
+- Table affected: `public.profiles`
+- Column added: `onboardings_seen` (jsonb)
+
+## Security Implications:
+- RLS Status: Unchanged. The new column will inherit existing RLS policies on the `profiles` table.
+- Policy Changes: No.
+- Auth Requirements: Standard authenticated user access to their own profile.
+
+## Performance Impact:
+- Indexes: None added.
+- Triggers: None added.
+- Estimated Impact: Negligible. Adding a column with a default value might take a moment on very large tables, but is generally a fast operation.
+*/
+
+ALTER TABLE public.profiles
+ADD COLUMN IF NOT EXISTS onboardings_seen jsonb DEFAULT '{}'::jsonb;

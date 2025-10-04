@@ -1,0 +1,50 @@
+-- Drop the function if it exists to ensure a clean slate
+DROP FUNCTION IF EXISTS public.invite_collaborator(text,text,uuid[],text);
+
+CREATE OR REPLACE FUNCTION public.invite_collaborator(
+    p_invitee_email text,
+    p_role text,
+    p_permission_scope text,
+    p_project_ids uuid[]
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    invitee_id uuid;
+    inviter_id uuid := auth.uid();
+    existing_collaboration_id uuid;
+    new_collaborator_record public.collaborators;
+BEGIN
+    -- Find the user to invite by email in the auth schema
+    SELECT id INTO invitee_id FROM auth.users WHERE email = p_invitee_email;
+
+    -- If user does not exist, return a specific message
+    IF invitee_id IS NULL THEN
+        return json_build_object('message', 'User does not exist');
+    END IF;
+
+    -- Prevent inviting self
+    IF invitee_id = inviter_id THEN
+        return json_build_object('error', 'Vous ne pouvez pas vous inviter vous-même.');
+    END IF;
+
+    -- Check if already a collaborator for any of these projects
+    SELECT id INTO existing_collaboration_id
+    FROM public.collaborators
+    WHERE user_id = invitee_id AND project_ids && p_project_ids
+    LIMIT 1;
+
+    IF existing_collaboration_id IS NOT NULL THEN
+        return json_build_object('error', 'Cet utilisateur est déjà un collaborateur sur au moins un de ces projets.');
+    END IF;
+
+    -- Create the collaboration record
+    INSERT INTO public.collaborators (owner_id, user_id, email, role, permission_scope, project_ids, status)
+    VALUES (inviter_id, invitee_id, p_invitee_email, p_role, p_permission_scope, p_project_ids, 'accepted')
+    RETURNING * INTO new_collaborator_record;
+
+    return to_json(new_collaborator_record);
+END;
+$$;

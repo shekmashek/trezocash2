@@ -1,0 +1,93 @@
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowRight, ArrowLeft } from 'lucide-react';
+
+const MiniOnboarding = ({ featureId, slides, onComplete }) => {
+    const [step, setStep] = useState(0);
+    const [direction, setDirection] = useState(1);
+
+    const handleNext = () => {
+        if (step < slides.length - 1) {
+            setDirection(1);
+            setStep(step + 1);
+        } else {
+            onComplete();
+        }
+    };
+
+    const handleBack = () => {
+        if (step > 0) {
+            setDirection(-1);
+            setStep(step - 1);
+        }
+    };
+    
+    const variants = {
+        enter: (direction) => ({ x: direction > 0 ? '100%' : '-100%', opacity: 0 }),
+        center: { x: 0, opacity: 1 },
+        exit: (direction) => ({ x: direction < 0 ? '100%' : '-100%', opacity: 0 }),
+    };
+
+    const currentSlide = slides[step];
+
+    return (
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full flex flex-col md:flex-row overflow-hidden">
+                <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-between">
+                    <div>
+                        <AnimatePresence mode="wait" custom={direction}>
+                            <motion.div
+                                key={step}
+                                custom={direction}
+                                variants={variants}
+                                initial="enter"
+                                animate="center"
+                                exit="exit"
+                                transition={{ type: "tween", ease: "easeInOut", duration: 0.5 }}
+                            >
+                                <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">{currentSlide.title}</h2>
+                                <p className="text-gray-600">{currentSlide.description}</p>
+                            </motion.div>
+                        </AnimatePresence>
+                    </div>
+                    <div className="flex items-center justify-between mt-8">
+                        <div className="flex items-center gap-2">
+                            {slides.map((_, i) => (
+                                <div key={i} className={`h-2 w-2 rounded-full transition-all ${i === step ? 'bg-blue-500 scale-125' : 'bg-gray-300'}`} />
+                            ))}
+                        </div>
+                        <div className="flex gap-2">
+                            {step > 0 && (
+                                <button onClick={handleBack} className="p-2 rounded-full text-gray-600 hover:bg-gray-100">
+                                    <ArrowLeft className="w-5 h-5" />
+                                </button>
+                            )}
+                            <button onClick={handleNext} className="bg-blue-600 text-white px-6 py-2 rounded-full font-semibold flex items-center gap-2 hover:bg-blue-700">
+                                {step === slides.length - 1 ? 'Commencer' : 'Suivant'}
+                                {step < slides.length - 1 && <ArrowRight className="w-4 h-4" />}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div className="w-full md:w-1/2 bg-gray-100 flex items-center justify-center p-8 relative overflow-hidden">
+                    <AnimatePresence mode="wait" custom={direction}>
+                         <motion.img
+                            key={step}
+                            src={currentSlide.image}
+                            alt={currentSlide.title}
+                            className="object-contain rounded-lg shadow-lg max-h-full"
+                            custom={direction}
+                            variants={variants}
+                            initial="enter"
+                            animate="center"
+                            exit="exit"
+                            transition={{ type: "tween", ease: "easeInOut", duration: 0.5 }}
+                        />
+                    </AnimatePresence>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default MiniOnboarding;

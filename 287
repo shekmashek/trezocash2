@@ -1,0 +1,30 @@
+/*
+          # [Operation Name]
+          Add currency settings to projects
+
+          ## Query Description: [This operation adds columns to the 'projects' table to store project-specific currency settings, including the currency code, symbol, display unit, and decimal places. This allows for fine-grained control over how financial data is displayed for each project.]
+          
+          ## Metadata:
+          - Schema-Category: ["Structural"]
+          - Impact-Level: ["Medium"]
+          - Requires-Backup: [true]
+          - Reversible: [true]
+          
+          ## Structure Details:
+          [
+  "projects"
+]
+          
+          ## Security Implications:
+          - RLS Status: [Enabled]
+          - Policy Changes: [No]
+          - Auth Requirements: [Authenticated users]
+          
+          ## Performance Impact:
+          - Indexes: [Not Modified]
+          - Triggers: [Not Modified]
+          - Estimated Impact: [Low. The new columns are nullable and will not affect existing queries until they are actively used.]
+          */
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS currency_symbol TEXT;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS display_unit TEXT;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS decimal_places INTEGER;

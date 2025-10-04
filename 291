@@ -1,0 +1,264 @@
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Plus, Edit, Trash2, Layers, Eye, EyeOff, Archive, List } from 'lucide-react';
+import ReactECharts from 'echarts-for-react';
+import { useData } from '../context/DataContext';
+import { useUI } from '../context/UIContext';
+import BudgetModal from '../components/BudgetModal';
+import EmptyState from '../components/EmptyState';
+import { formatCurrency } from '../utils/formatting';
+import { useActiveProjectData, useCashflowChartData } from '../utils/selectors.jsx';
+import ScenarioEntriesDrawer from '../components/ScenarioEntriesDrawer';
+import { saveScenario, deleteScenarioEntry, markOnboardingAsSeen } from '../context/actions';
+import MiniOnboarding from '../components/MiniOnboarding';
+
+const colorMap = {
+  '#8b5cf6': { bg: 'bg-violet-50', text: 'text-violet-800', button: 'bg-violet-200 hover:bg-violet-300', line: '#8b5cf6' },
+  '#f97316': { bg: 'bg-orange-50', text: 'text-orange-800', button: 'bg-orange-200 hover:bg-orange-300', line: '#f97316' },
+  '#d946ef': { bg: 'bg-fuchsia-50', text: 'text-fuchsia-800', button: 'bg-fuchsia-200 hover:bg-fuchsia-300', line: '#d946ef' },
+};
+const defaultColors = colorMap['#8b5cf6'];
+
+const scenarioOnboardingSlides = [
+    {
+        title: "Simulez l'avenir avec les Scénarios",
+        description: "Les scénarios vous permettent de tester des hypothèses (comme une embauche, un investissement, ou une crise) sans impacter votre budget réel. C'est votre laboratoire financier.",
+        image: "https://i.ibb.co/L631JpP/scenario-slide-1.png"
+    },
+    {
+        title: "Créez, Modifiez, Supprimez",
+        description: "Ajoutez des entrées ou des sorties spécifiques à un scénario, ou modifiez des lignes existantes de votre budget. Chaque scénario est un univers parallèle.",
+        image: "https://i.ibb.co/yQZgGgT/scenario-slide-2.png"
+    },
+    {
+        title: "Comparez et Décidez",
+        description: "Visualisez l'impact de chaque scénario sur votre trésorerie future grâce au graphique comparatif. Prenez des décisions basées sur des données, pas sur des intuitions.",
+        image: "https://i.ibb.co/hZJdKqC/scenario-slide-3.png"
+    }
+];
+
+const ScenarioView = ({ isFocusMode = false }) => {
+  const { dataState, dataDispatch } = useData();
+  const { uiState, uiDispatch } = useUI();
+  const { projects, scenarios, allEntries, scenarioEntries, session, profile } = dataState;
+  const { activeProjectId } = uiState;
+
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null);
+  const [activeScenarioId, setActiveScenarioId] = useState(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedScenario, setSelectedScenario] = useState(null);
+  
+  const isConsolidated = activeProjectId === 'consolidated' || activeProjectId?.startsWith('consolidated_view_');
+
+  const showOnboarding = useMemo(() => {
+    if (isConsolidated || !profile || !activeProjectId) return false;
+    const seenOnboardings = profile.onboardings_seen || {};
+    return !seenOnboardings.scenarios?.includes(activeProjectId);
+  }, [profile, activeProjectId, isConsolidated]);
+
+  const handleOnboardingComplete = () => {
+    markOnboardingAsSeen({ dataDispatch, uiDispatch }, { userId: session.user.id, feature: 'scenarios', projectId: activeProjectId });
+  };
+
+  const projectScenarios = useMemo(() => {
+    if (isConsolidated) {
+      const activeProjectIds = projects.filter(p => !p.isArchived).map(p => p.id);
+      return scenarios
+        .filter(s => activeProjectIds.includes(s.projectId) && !s.isArchived)
+        .map(s => {
+            const project = projects.find(p => p.id === s.projectId);
+            return { ...s, displayName: `${s.name} (${project?.name || 'N/A'})` };
+        });
+    }
+    return scenarios
+      .filter(s => s.projectId === activeProjectId && !s.isArchived)
+      .map(s => ({ ...s, displayName: s.name }));
+  }, [scenarios, activeProjectId, isConsolidated, projects]);
+
+  const { periods } = useActiveProjectData(dataState, uiState);
+  const chartData = useCashflowChartData(dataState, uiState, periods);
+
+  const getChartOptions = () => {
+    if (!chartData.labels || chartData.labels.length === 0) {
+      return { title: { text: 'Aucune donnée à afficher', left: 'center', top: 'center' }, series: [] };
+    }
+
+    const series = [
+      { name: 'Solde Réel (Base)', type: 'line', data: chartData.base.actualBalance, symbol: 'circle', symbolSize: 8, itemStyle: { color: '#3b82f6' }, lineStyle: { width: 3, type: 'solid' }, z: 10 },
+      { name: 'Solde Prévisionnel (Base)', type: 'line', data: chartData.base.projectedBalance, symbol: 'none', itemStyle: { color: '#3b82f6' }, lineStyle: { width: 3, type: 'dashed' }, z: 10 },
+      ...chartData.scenarios.map(sc => ({
+        name: `Scénario: ${sc.name}`, type: 'line', data: sc.data, symbol: 'none', itemStyle: { color: sc.color }, lineStyle: { width: 3, type: 'dashed' }
+      }))
+    ];
+    return {
+      tooltip: { trigger: 'axis', formatter: (params) => params.map(p => `${p.marker} ${p.seriesName}: <strong>${formatCurrency(p.value, dataState.settings)}</strong>`).join('<br/>') },
+      legend: { data: series.map(s => s.name), top: 'bottom', type: 'scroll' },
+      grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
+      xAxis: { type: 'category', data: chartData.labels, axisTick: { alignWithLabel: true } },
+      yAxis: { type: 'value', axisLabel: { formatter: (value) => formatCurrency(value, dataState.settings) } },
+      series: series
+    };
+  };
+
+  const handleOpenScenarioModal = (scenario = null) => uiDispatch({ type: 'OPEN_SCENARIO_MODAL', payload: scenario });
+  const handleDeleteScenario = (scenarioId) => uiDispatch({ type: 'OPEN_CONFIRMATION_MODAL', payload: { title: 'Supprimer ce scénario ?', message: 'Cette action est irréversible.', onConfirm: () => deleteScenario({dataDispatch, uiDispatch}, scenarioId) } });
+  const handleArchiveScenario = (scenarioId) => {
+    const scenarioToArchive = scenarios.find(s => s.id === scenarioId);
+    if (!scenarioToArchive) return;
+    uiDispatch({ type: 'OPEN_CONFIRMATION_MODAL', payload: { title: `Archiver le scénario "${scenarioToArchive.name}" ?`, message: "L'archivage d'un scénario le masquera de la liste, mais toutes ses données seront conservées. Vous pourrez le restaurer à tout moment.", onConfirm: () => dataDispatch({ type: 'ARCHIVE_SCENARIO', payload: scenarioId }), confirmText: 'Archiver', cancelText: 'Annuler', confirmColor: 'primary' } });
+  };
+  const handleAddEntryToScenario = (scenarioId) => { setActiveScenarioId(scenarioId); setEditingEntry(null); setIsBudgetModalOpen(true); };
+  
+  const handleSaveScenarioEntry = async (entryData) => {
+    const user = session?.user;
+    if (!user) {
+        uiDispatch({ type: 'ADD_TOAST', payload: { message: 'Utilisateur non authentifié.', type: 'error' } });
+        return;
+    }
+
+    try {
+        const entryId = editingEntry ? editingEntry.id : uuidv4();
+
+        const dataToSave = {
+            scenario_id: activeScenarioId,
+            id: entryId,
+            user_id: user.id,
+            type: entryData.type,
+            category: entryData.category,
+            frequency: entryData.frequency,
+            amount: entryData.amount,
+            date: entryData.date,
+            start_date: entryData.startDate,
+            end_date: entryData.endDate,
+            supplier: entryData.supplier,
+            description: entryData.description,
+            is_deleted: false,
+            payments: entryData.payments,
+        };
+
+        const { data: savedEntry, error } = await supabase
+            .from('scenario_entries')
+            .upsert(dataToSave, { onConflict: 'scenario_id,id' })
+            .select()
+            .single();
+
+        if (error) throw error;
+        
+        const savedEntryForClient = {
+            id: savedEntry.id,
+            type: savedEntry.type,
+            category: savedEntry.category,
+            frequency: savedEntry.frequency,
+            amount: savedEntry.amount,
+            date: savedEntry.date,
+            startDate: savedEntry.start_date,
+            endDate: savedEntry.end_date,
+            supplier: savedEntry.supplier,
+            description: savedEntry.description,
+            isDeleted: savedEntry.is_deleted,
+            payments: savedEntry.payments,
+        };
+
+        dataDispatch({
+            type: 'SAVE_SCENARIO_ENTRY_SUCCESS',
+            payload: {
+                scenarioId: activeScenarioId,
+                savedEntry: savedEntryForClient,
+            },
+        });
+        uiDispatch({ type: 'ADD_TOAST', payload: { message: 'Modification du scénario enregistrée.', type: 'success' } });
+
+    } catch (error) {
+        console.error("Error saving scenario entry:", error);
+        uiDispatch({ type: 'ADD_TOAST', payload: { message: `Erreur: ${error.message}`, type: 'error' } });
+    }
+
+    setIsBudgetModalOpen(false);
+    setActiveScenarioId(null);
+  };
+  
+  const handleToggleVisibility = (scenarioId) => dataDispatch({ type: 'TOGGLE_SCENARIO_VISIBILITY', payload: scenarioId });
+
+  const handleOpenDrawer = (scenario) => {
+    setSelectedScenario(scenario);
+    setIsDrawerOpen(true);
+  };
+
+  const handleCloseDrawer = () => {
+    setIsDrawerOpen(false);
+    setSelectedScenario(null);
+  };
+
+  const handleAddEntryInDrawer = () => {
+    if (!selectedScenario) return;
+    setActiveScenarioId(selectedScenario.id);
+    setEditingEntry(null);
+    setIsBudgetModalOpen(true);
+  };
+
+  const handleEditEntryInDrawer = (entry) => {
+    if (!selectedScenario) return;
+    setActiveScenarioId(selectedScenario.id);
+    setEditingEntry(entry);
+    setIsBudgetModalOpen(true);
+  };
+
+  const handleDeleteEntryInDrawer = (entryId) => {
+    if (!selectedScenario) return;
+    uiDispatch({
+      type: 'OPEN_CONFIRMATION_MODAL',
+      payload: {
+        title: 'Supprimer cette modification ?',
+        message: "Cette modification sera retirée du scénario. Si c'est une nouvelle entrée, elle sera supprimée. Si c'est une modification d'une entrée de base, l'entrée de base sera restaurée.",
+        onConfirm: () => deleteScenarioEntry({dataDispatch, uiDispatch}, { scenarioId: selectedScenario.id, entryId }),
+      }
+    });
+  };
+  
+  if (showOnboarding) {
+    return <MiniOnboarding slides={scenarioOnboardingSlides} onComplete={handleOnboardingComplete} />;
+  }
+  
+  return (
+    <div className={isFocusMode ? "h-full flex flex-col" : "p-6 max-w-full flex flex-col h-full"}>
+      <div className="bg-white p-6 rounded-lg shadow mb-8 flex-shrink-0">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-gray-800">Vos Scénarios</h2>
+          {projectScenarios.length < 3 && (<button onClick={() => handleOpenScenarioModal()} disabled={isConsolidated} className="bg-accent-600 hover:bg-accent-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"><Plus className="w-5 h-5" /> Nouveau Scénario</button>)}
+        </div>
+        <div className="space-y-3">
+          {projectScenarios.length > 0 ? (projectScenarios.map(scenario => { const colors = colorMap[scenario.color] || defaultColors; return (
+              <div key={scenario.id} className={`p-4 border rounded-lg flex justify-between items-center ${colors.bg}`}>
+                <div><h3 className={`font-bold ${colors.text}`}>{scenario.displayName}</h3><p className={`text-sm ${colors.text}`}>{scenario.description}</p></div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => handleToggleVisibility(scenario.id)} className="p-2 text-gray-500 hover:text-gray-800" title={scenario.isVisible ? "Masquer dans le graphique" : "Afficher dans le graphique"}>{scenario.isVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}</button>
+                  <button onClick={() => handleOpenDrawer(scenario)} disabled={isConsolidated} className="p-2 text-sm rounded-md flex items-center gap-1 bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" title="Gérer les écritures"><List className="w-4 h-4" /><span>Gérer les écritures</span></button>
+                  <button onClick={() => handleAddEntryToScenario(scenario.id)} disabled={isConsolidated} className={`p-2 text-sm rounded-md flex items-center gap-1 ${colors.button} ${colors.text} disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed`}><Plus className="w-4 h-4" /> Ajouter une entrée</button>
+                  <button onClick={() => handleOpenScenarioModal(scenario)} disabled={isConsolidated} className="p-2 text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"><Edit className="w-4 h-4" /></button>
+                  <button onClick={() => handleArchiveScenario(scenario.id)} disabled={isConsolidated} className="p-2 text-yellow-600 hover:text-yellow-800 disabled:opacity-50 disabled:cursor-not-allowed" title="Archiver"><Archive className="w-4 h-4" /></button>
+                  <button onClick={() => handleDeleteScenario(scenario.id)} disabled={isConsolidated} className="p-2 text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              </div>
+            ); })) : (<EmptyState icon={Layers} title="Aucun scénario pour l'instant" message="Créez des simulations pour comparer différentes hypothèses financières et prendre de meilleures décisions." actionText={isConsolidated ? undefined : "Nouveau Scénario"} onActionClick={isConsolidated ? undefined : () => handleOpenScenarioModal()} />)}
+        </div>
+      </div>
+      <div className="bg-white p-6 rounded-lg shadow flex-grow flex flex-col min-h-0">
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">Comparaison des Soldes de Trésorerie</h2>
+        <div className="flex-grow min-h-0">
+          <ReactECharts option={getChartOptions()} style={{ height: '100%', width: '100%' }} notMerge={true} lazyUpdate={true} />
+        </div>
+      </div>
+      {isBudgetModalOpen && <BudgetModal isOpen={isBudgetModalOpen} onClose={() => { setIsBudgetModalOpen(false); setActiveScenarioId(null); }} onSave={handleSaveScenarioEntry} editingData={editingEntry} />}
+      <ScenarioEntriesDrawer 
+        isOpen={isDrawerOpen}
+        onClose={handleCloseDrawer}
+        scenario={selectedScenario}
+        onAddEntry={handleAddEntryInDrawer}
+        onEditEntry={handleEditEntryInDrawer}
+        onDeleteEntry={handleDeleteEntryInDrawer}
+      />
+    </div>
+  );
+};
+
+export default ScenarioView;

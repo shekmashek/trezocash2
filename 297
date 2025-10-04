@@ -1,0 +1,13 @@
+ALTER TABLE public.projects
+ADD COLUMN IF NOT EXISTS display_unit text,
+ADD COLUMN IF NOT EXISTS decimal_places integer,
+ADD COLUMN IF NOT EXISTS timezone_offset integer;
+
+-- Update RLS policies for projects table
+DROP POLICY IF EXISTS "Enable all operations for users based on user_id" ON public.projects;
+CREATE POLICY "Enable all operations for users based on user_id"
+ON public.projects
+FOR ALL
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
