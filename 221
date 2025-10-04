@@ -1,0 +1,38 @@
+-- Add criticality column to user_categories table
+ALTER TABLE public.user_categories
+ADD COLUMN IF NOT EXISTS criticality text CHECK (criticality IN ('critical', 'essential', 'discretionary'));
+
+-- Update RLS policies for user_categories table
+DROP POLICY IF EXISTS "Enable read access for authenticated users" ON public.user_categories;
+CREATE POLICY "Enable read access for authenticated users"
+ON public.user_categories
+FOR SELECT
+TO authenticated
+USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.user_categories;
+CREATE POLICY "Enable insert for authenticated users"
+ON public.user_categories
+FOR INSERT
+TO authenticated
+WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Enable update for users based on user_id" ON public.user_categories;
+CREATE POLICY "Enable update for users based on user_id"
+ON public.user_categories
+FOR UPDATE
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Enable delete for users based on user_id" ON public.user_categories;
+CREATE POLICY "Enable delete for users based on user_id"
+ON public.user_categories
+FOR DELETE
+TO authenticated
+USING (auth.uid() = user_id);
+
+-- Set default criticality for existing categories
+UPDATE public.user_categories
+SET criticality = 'essential'
+WHERE criticality IS NULL AND parent_id IS NOT NULL;

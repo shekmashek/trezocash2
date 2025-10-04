@@ -1,0 +1,92 @@
+/*
+          # [Operation Name]
+          Add criticality to user_categories
+
+          ## Query Description: [This operation adds a 'criticality' column to the 'user_categories' table to classify expenses. It sets a default value and updates existing categories based on their names to provide an initial classification, improving financial analysis capabilities.]
+          
+          ## Metadata:
+          - Schema-Category: ["Structural"]
+          - Impact-Level: ["Low"]
+          - Requires-Backup: [false]
+          - Reversible: [true]
+          
+          ## Structure Details:
+          [
+  "user_categories"
+]
+          
+          ## Security Implications:
+          - RLS Status: [Enabled]
+          - Policy Changes: [No]
+          - Auth Requirements: [Authenticated users]
+          
+          ## Performance Impact:
+          - Indexes: [Not Modified]
+          - Triggers: [Not Modified]
+          - Estimated Impact: [Low. The operation is a one-time update and should not affect query performance long-term.]
+          */
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+    AND table_name = 'user_categories'
+    AND column_name = 'criticality'
+  ) THEN
+    ALTER TABLE public.user_categories
+    ADD COLUMN criticality text NOT NULL DEFAULT 'essential';
+  END IF;
+END $$;
+
+-- Update RLS policies to include the new column
+DROP POLICY IF EXISTS "Enable update for users based on user_id" ON public.user_categories;
+CREATE POLICY "Enable update for users based on user_id"
+ON public.user_categories
+FOR UPDATE
+USING (auth.uid() = user_id AND is_fixed = false)
+WITH CHECK (auth.uid() = user_id AND is_fixed = false);
+
+-- Set criticality for CRITICAL expenses
+UPDATE public.user_categories
+SET criticality = 'critical'
+WHERE name IN (
+    'Salaires, traitements et charges', 'Cotisations sociales personnelles',
+    'Loyer & Charges locatives', 'Prêt immobilier (remboursement capital)', 'Charges de copropriété',
+    'Énergie (Électricité, Gaz, Chauffage)', 'Eau et assainissement', 'Assurance habitation/locaux',
+    'Taxe foncière', 'Assurance auto/moto', 'Mutuelle santé', 'Frais de notaire',
+    'Assurance responsabilité civile pro (RC Pro)', 'Intérêts d''emprunts', 'Assurance emprunteur',
+    'Impôt sur le revenu / sur les sociétés', 'Taxe d''habitation', 'Cotisation Foncière des Entreprises (CFE)',
+    'TVA à payer', 'Frais de scolarité et garde', 'Découvert bancaire'
+);
+
+-- Set criticality for ESSENTIAL expenses
+UPDATE public.user_categories
+SET criticality = 'essential'
+WHERE name IN (
+    'Honoraires (freelances, experts-comptables)', 'Indemnités (déplacement, repas, km)',
+    'Entretien, réparations et amélioration', 'Carburant & Recharge', 'Entretien, réparations et pièces',
+    'Transport en commun', 'Courses alimentaires', 'Repas en déplacement professionnel',
+    'Téléphonie mobile et fixe', 'Internet (Box) et Abonnements TV', 'Logiciels et applications (SaaS)',
+    'Hébergement web, nom de domaine', 'Frais médicaux (consultations, pharmacie)',
+    'Soins (dentiste, opticien, kiné)', 'Achat de marchandises / matières premières',
+    'Sous-traitance', 'Frais de déplacement professionnel (hors repas)', 'Cotisations et frais professionnels',
+    'Frais bancaires', 'Autres assurances', 'Vêtements et fournitures pour enfants',
+    'Frais divers et imprévus', 'Électroménager', 'Fournitures de bureau'
+);
+
+-- Set criticality for DISCRETIONARY expenses
+UPDATE public.user_categories
+SET criticality = 'discretionary'
+WHERE name IN (
+    'Primes, bonus et participations', 'Péage, stationnement et amendes',
+    'Taxi, VTC, location de véhicule', 'Voyages longue distance (billets de train, d''avion)',
+    'Restaurant, café, bar', 'Livraison de repas à domicile', 'Équipements tech (ordinateur, smartphone)',
+    'Abonnements culturels (Streaming, presse, jeux vidéo)', 'Sports (Club, équipement, licence)',
+    'Sorties (Cinéma, concert, musée, événement)', 'Hobbies et passions', 'Vacances et week-ends',
+    'Cotisations associatives', 'Bien-être (Coaching, yoga, cosmétiques)', 'Apport personnel',
+    'Travaux d''aménagement importants', 'Achat de mobilier durable', 'Investissements financiers',
+    'Marketing et publicité', 'Petit équipement', 'Dons et mécénat', 'Activités extrascolaires',
+    'Versement épargne', 'Épargne retraite (PER)', 'Mobilier & Agencement', 'Décoration & Ambiance',
+    'Linge de maison', 'Jardin & Extérieur'
+);

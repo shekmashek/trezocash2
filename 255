@@ -1,0 +1,29 @@
+/*
+          # Add Timezone to Projects
+          Adds a timezone_offset column to the projects table to allow per-project timezone settings.
+
+          ## Query Description: This operation adds a new column `timezone_offset` to the `projects` table. This column will store the timezone offset for each project, allowing for more accurate date-based calculations. It defaults to 0 (UTC). This change is non-destructive and fully reversible.
+          
+          ## Metadata:
+          - Schema-Category: "Structural"
+          - Impact-Level: "Low"
+          - Requires-Backup: false
+          - Reversible: true
+          
+          ## Structure Details:
+          - Table Modified: `projects`
+          - Column Added: `timezone_offset` (INTEGER, default 0, NOT NULL)
+          
+          ## Security Implications:
+          - RLS Status: Unchanged
+          - Policy Changes: No
+          - Auth Requirements: None
+          
+          ## Performance Impact:
+          - Indexes: None
+          - Triggers: None
+          - Estimated Impact: Negligible performance impact.
+          */
+
+ALTER TABLE public.projects
+ADD COLUMN IF NOT EXISTS timezone_offset INTEGER NOT NULL DEFAULT 0;

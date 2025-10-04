@@ -1,0 +1,31 @@
+/*
+          # [Operation Name]
+          Add Currency and Display Settings to Projects
+
+          ## Query Description: [This operation adds new columns to the 'projects' table to store currency code, symbol, and display preferences for each project. This is a non-destructive operation and sets default values for existing projects.]
+          
+          ## Metadata:
+          - Schema-Category: "Structural"
+          - Impact-Level: "Low"
+          - Requires-Backup: false
+          - Reversible: true
+          
+          ## Structure Details:
+          - Adds 'currency' (TEXT), 'currency_symbol' (TEXT), 'display_unit' (TEXT), and 'decimal_places' (INT2) columns to the 'projects' table.
+          - Sets default values: 'EUR' for currency, '€' for symbol, 'standard' for display unit, and 2 for decimal places.
+          
+          ## Security Implications:
+          - RLS Status: Enabled
+          - Policy Changes: No
+          - Auth Requirements: User must be authenticated to modify their own projects.
+          
+          ## Performance Impact:
+          - Indexes: None
+          - Triggers: None
+          - Estimated Impact: Low.
+          */
+ALTER TABLE public.projects
+ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'EUR',
+ADD COLUMN IF NOT EXISTS currency_symbol TEXT DEFAULT '€',
+ADD COLUMN IF NOT EXISTS display_unit TEXT DEFAULT 'standard',
+ADD COLUMN IF NOT EXISTS decimal_places INT2 DEFAULT 2;

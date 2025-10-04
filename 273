@@ -1,0 +1,54 @@
+/*
+          # [Operation Name]
+          Setup Tax Management System
+
+          ## Query Description: [This operation creates the necessary tables and types for a flexible tax management system. It allows users to define custom taxes, their calculation bases, and declaration periodicities. This is a non-destructive operation if run for the first time.]
+          
+          ## Metadata:
+          - Schema-Category: "Structural"
+          - Impact-Level: "Medium"
+          - Requires-Backup: true
+          - Reversible: false
+          
+          ## Structure Details:
+          - Creates ENUM types: 'tax_base_type', 'tax_declaration_periodicity'.
+          - Creates 'tax_configs' table to store tax settings.
+          - Enables RLS and creates policies for 'tax_configs'.
+          
+          ## Security Implications:
+          - RLS Status: Enabled
+          - Policy Changes: Yes, new policies are created for the 'tax_configs' table.
+          - Auth Requirements: User must be authenticated to manage their own tax configurations.
+          
+          ## Performance Impact:
+          - Indexes: Primary key index on 'tax_configs'.
+          - Triggers: None
+          - Estimated Impact: Low.
+          */
+-- Drop existing objects if they exist, to ensure a clean slate
+DROP TABLE IF EXISTS public.tax_configs CASCADE;
+DROP TYPE IF EXISTS public.tax_base_type;
+DROP TYPE IF EXISTS public.tax_declaration_periodicity;
+-- Create ENUM types for tax configuration
+CREATE TYPE public.tax_base_type AS ENUM ('revenue', 'profit', 'salary');
+CREATE TYPE public.tax_declaration_periodicity AS ENUM ('monthly', 'quarterly', 'annually');
+-- Create the tax_configs table
+CREATE TABLE public.tax_configs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    name TEXT NOT NULL,
+    rate NUMERIC NOT NULL,
+    base_type public.tax_base_type NOT NULL,
+    declaration_periodicity public.tax_declaration_periodicity NOT NULL,
+    payment_delay_months INT DEFAULT 1,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+-- Enable RLS
+ALTER TABLE public.tax_configs ENABLE ROW LEVEL SECURITY;
+-- Create policies for tax_configs
+CREATE POLICY "Users can manage their own tax configs"
+ON public.tax_configs
+FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);

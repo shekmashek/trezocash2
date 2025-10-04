@@ -1,0 +1,2 @@
+// This function is now handled by a PostgreSQL RPC function for better security and reliability.
+// The file can be removed.

@@ -1,0 +1,33 @@
+/*
+          # [Operation Name]
+          Add Currency Fields to Budget Entries
+
+          ## Query Description: [This operation adds columns to the 'budget_entries' table to support multi-currency transactions. It stores the original amount and currency, the type of amount (HT/TTC), the VAT rate, and the calculated amounts. This is a non-destructive operation.]
+          
+          ## Metadata:
+          - Schema-Category: "Structural"
+          - Impact-Level: "Low"
+          - Requires-Backup: false
+          - Reversible: true
+          
+          ## Structure Details:
+          - Adds 'currency' (TEXT), 'original_amount' (NUMERIC), 'amount_type' (TEXT), 'vat_rate_id' (UUID), 'ht_amount' (NUMERIC), and 'ttc_amount' (NUMERIC) columns to the 'budget_entries' table.
+          - Adds a foreign key constraint for 'vat_rate_id'.
+          
+          ## Security Implications:
+          - RLS Status: Enabled
+          - Policy Changes: No
+          - Auth Requirements: User must be authenticated.
+          
+          ## Performance Impact:
+          - Indexes: None
+          - Triggers: None
+          - Estimated Impact: Low.
+          */
+ALTER TABLE public.budget_entries
+ADD COLUMN IF NOT EXISTS currency TEXT,
+ADD COLUMN IF NOT EXISTS original_amount NUMERIC,
+ADD COLUMN IF NOT EXISTS amount_type TEXT DEFAULT 'ttc',
+ADD COLUMN IF NOT EXISTS vat_rate_id UUID REFERENCES public.vat_rates(id) ON DELETE SET NULL,
+ADD COLUMN IF NOT EXISTS ht_amount NUMERIC,
+ADD COLUMN IF NOT EXISTS ttc_amount NUMERIC;

@@ -1,0 +1,29 @@
+/*
+          # Add Phone to Profiles
+          Adds a `phone` column to the profiles table.
+
+          ## Query Description: This operation adds a new text column `phone` to the `public.profiles` table to store user phone numbers. This change is non-destructive and fully reversible.
+          
+          ## Metadata:
+          - Schema-Category: "Structural"
+          - Impact-Level: "Low"
+          - Requires-Backup: false
+          - Reversible: true
+          
+          ## Structure Details:
+          - Table Modified: `profiles`
+          - Column Added: `phone` (TEXT)
+          
+          ## Security Implications:
+          - RLS Status: Unchanged
+          - Policy Changes: No
+          - Auth Requirements: None
+          
+          ## Performance Impact:
+          - Indexes: None
+          - Triggers: None
+          - Estimated Impact: Negligible.
+          */
+
+ALTER TABLE public.profiles
+ADD COLUMN IF NOT EXISTS phone TEXT;

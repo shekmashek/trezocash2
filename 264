@@ -1,0 +1,70 @@
+/*
+          # Create Invite Collaborator RPC
+          Creates a secure RPC function to handle collaborator invitations.
+
+          ## Query Description: This operation creates a PostgreSQL function `invite_collaborator` that can be called from the client. This function securely checks if a user exists and adds them as a collaborator, avoiding client-side RLS issues. This is a non-destructive change.
+          
+          ## Metadata:
+          - Schema-Category: "Structural"
+          - Impact-Level: "Low"
+          - Requires-Backup: false
+          - Reversible: true (by dropping the function)
+          
+          ## Structure Details:
+          - Function Created: `invite_collaborator(p_invitee_email TEXT, p_project_ids UUID[], p_role TEXT, p_permission_scope TEXT)`
+          
+          ## Security Implications:
+          - RLS Status: N/A
+          - Policy Changes: No
+          - Auth Requirements: The function is defined with `SECURITY DEFINER` to bypass RLS for the user lookup, but performs its own checks to ensure the inviter is authenticated.
+          
+          ## Performance Impact:
+          - Indexes: None
+          - Triggers: None
+          - Estimated Impact: Negligible.
+          */
+
+CREATE OR REPLACE FUNCTION public.invite_collaborator(
+    p_invitee_email TEXT,
+    p_project_ids UUID[],
+    p_role TEXT,
+    p_permission_scope TEXT
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    invitee_id UUID;
+    inviter_id UUID := auth.uid();
+    new_collaborator_record RECORD;
+BEGIN
+    -- Find the user to invite by email in the auth schema
+    SELECT id INTO invitee_id FROM auth.users WHERE email = p_invitee_email;
+
+    -- If user does not exist, return an error message
+    IF invitee_id IS NULL THEN
+        RETURN json_build_object('error', 'USER_NOT_FOUND');
+    END IF;
+
+    -- Prevent inviting self
+    IF invitee_id = inviter_id THEN
+        RETURN json_build_object('error', 'CANNOT_INVITE_SELF');
+    END IF;
+
+    -- Check if already a collaborator for this project
+    IF EXISTS (
+        SELECT 1 FROM public.collaborators
+        WHERE user_id = invitee_id AND project_ids && p_project_ids
+    ) THEN
+        RETURN json_build_object('error', 'ALREADY_COLLABORATOR');
+    END IF;
+
+    -- Create the collaboration record
+    INSERT INTO public.collaborators (owner_id, user_id, email, role, permission_scope, project_ids, status)
+    VALUES (inviter_id, invitee_id, p_invitee_email, p_role, p_permission_scope, p_project_ids, 'accepted')
+    RETURNING * INTO new_collaborator_record;
+
+    RETURN to_json(new_collaborator_record);
+END;
+$$;

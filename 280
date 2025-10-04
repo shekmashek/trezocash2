@@ -1,0 +1,71 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const languages = [
+  { code: 'fr', name: 'Français', flag: '🇫🇷' },
+  { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+  { code: 'es', name: 'Español', flag: '🇪🇸' },
+];
+
+const LanguageSwitcher = () => {
+  const { i18n } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[0];
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const changeLanguage = (lng) => {
+    i18n.changeLanguage(lng);
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-2 text-gray-600 hover:bg-gray-200 rounded-md transition-colors"
+        title="Changer de langue"
+      >
+        <span className="text-xl">{currentLanguage.flag}</span>
+      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: -10 }}
+            className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border z-20"
+          >
+            <ul className="p-1">
+              {languages.map(lang => (
+                <li key={lang.code}>
+                  <button
+                    onClick={() => changeLanguage(lang.code)}
+                    className={`w-full text-left px-3 py-1.5 text-sm rounded-md flex items-center gap-3 ${i18n.language === lang.code ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-700 hover:bg-gray-100'}`}
+                  >
+                    <span className="text-lg">{lang.flag}</span>
+                    <span>{lang.name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export default LanguageSwitcher;

@@ -1,0 +1,64 @@
+/*
+          # Fix VAT Regime Type
+          Recreates the `vat_regime_type` ENUM with French values for consistency.
+
+          ## Query Description: This operation drops the existing `vat_regime_type` and recreates it with French values ('reel_normal', 'reel_simplifie', 'franchise_en_base'). This may require temporarily dropping and recreating the `vat_regimes` table if it depends on this type.
+          
+          ## Metadata:
+          - Schema-Category: "Structural"
+          - Impact-Level: "Medium"
+          - Requires-Backup: true
+          - Reversible: false (without manual data migration)
+          
+          ## Structure Details:
+          - Type Modified: `vat_regime_type`
+          - Table Recreated: `vat_regimes`
+          
+          ## Security Implications:
+          - RLS Status: Unchanged
+          - Policy Changes: No
+          - Auth Requirements: None
+          
+          ## Performance Impact:
+          - Indexes: Recreated
+          - Triggers: None
+          - Estimated Impact: Minimal, table is likely small.
+          */
+
+-- Drop dependent table first
+DROP TABLE IF EXISTS public.vat_regimes;
+-- Drop the old ENUM type
+DROP TYPE IF EXISTS public.vat_regime_type;
+
+-- Create the new ENUM type with French values
+CREATE TYPE public.vat_regime_type AS ENUM ('reel_normal', 'reel_simplifie', 'franchise_en_base');
+
+-- Recreate the table with the new type
+CREATE TABLE public.vat_regimes (
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+    regime_type public.vat_regime_type NOT NULL,
+    collection_periodicity public.tax_declaration_periodicity NOT NULL,
+    payment_delay_months integer NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    updated_at timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT vat_regimes_pkey PRIMARY KEY (id),
+    CONSTRAINT vat_regimes_project_id_key UNIQUE (project_id)
+);
+
+-- Re-enable RLS and policies if they were dropped
+ALTER TABLE public.vat_regimes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow users to manage VAT regimes for their projects"
+ON public.vat_regimes
+FOR ALL
+USING (
+  (auth.uid() IN ( SELECT projects.user_id
+   FROM projects
+  WHERE (projects.id = vat_regimes.project_id)))
+)
+WITH CHECK (
+  (auth.uid() IN ( SELECT projects.user_id
+   FROM projects
+  WHERE (projects.id = vat_regimes.project_id)))
+);

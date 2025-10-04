@@ -1,0 +1,33 @@
+/*
+  # [Structural] Add Onboarding Tracking to Projects
+
+  This migration adds a new column to the `projects` table to track which mini-onboarding tutorials a user has completed for each specific project.
+
+  ## Query Description:
+  - Adds a `completed_onboardings` column of type `TEXT[]` (an array of strings) to the `public.projects` table.
+  - Sets a default value of an empty array `ARRAY[]::TEXT[]` for this new column.
+  - This is a non-destructive operation and will not affect existing data.
+
+  ## Metadata:
+  - Schema-Category: "Structural"
+  - Impact-Level: "Low"
+  - Requires-Backup: false
+  - Reversible: true (The column can be dropped)
+
+  ## Structure Details:
+  - Table affected: `public.projects`
+  - Column added: `completed_onboardings` (TEXT[])
+
+  ## Security Implications:
+  - RLS Status: Unchanged.
+  - Policy Changes: No.
+  - Auth Requirements: No.
+
+  ## Performance Impact:
+  - Indexes: None added.
+  - Triggers: None added.
+  - Estimated Impact: Negligible. Adding a column with a default value to an existing table is a fast operation in PostgreSQL.
+*/
+
+ALTER TABLE public.projects
+ADD COLUMN IF NOT EXISTS completed_onboardings TEXT[] DEFAULT ARRAY[]::TEXT[];

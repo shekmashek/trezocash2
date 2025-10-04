@@ -1,0 +1,34 @@
+/*
+          # [Structural] Ajout du support multi-devises
+          Ce script ajoute une colonne `currency` aux tables `budget_entries` et `actual_transactions` pour permettre de spécifier une devise différente pour chaque transaction.
+
+          ## Query Description: ["Cette opération ajoute une nouvelle colonne aux tables de transactions. Elle est sûre et n'impacte pas les données existantes."]
+          
+          ## Metadata:
+          - Schema-Category: "Structural"
+          - Impact-Level: "Low"
+          - Requires-Backup: false
+          - Reversible: true
+          
+          ## Structure Details:
+          - Table `budget_entries`: Ajout de la colonne `currency` (TEXT).
+          - Table `actual_transactions`: Ajout de la colonne `currency` (TEXT).
+          
+          ## Security Implications:
+          - RLS Status: Inchangé
+          - Policy Changes: Non
+          - Auth Requirements: Non
+          
+          ## Performance Impact:
+          - Indexes: Aucun
+          - Triggers: Aucun
+          - Estimated Impact: Faible. Un léger impact sur la taille des tables.
+          */
+
+-- Add currency column to budget entries
+ALTER TABLE public.budget_entries
+ADD COLUMN IF NOT EXISTS currency TEXT;
+
+-- Add currency column to actual transactions
+ALTER TABLE public.actual_transactions
+ADD COLUMN IF NOT EXISTS currency TEXT;

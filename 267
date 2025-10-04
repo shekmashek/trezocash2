@@ -1,0 +1,74 @@
+/*
+          # [Operation Name]
+          Add Criticality to Sub-Categories
+
+          ## Query Description: [This operation adds a 'criticality' level to user-created sub-categories, allowing for better expense analysis. It defaults existing categories to 'essential' and sets up the structure for future use. This is a non-destructive operation.]
+          
+          ## Metadata:
+          - Schema-Category: "Structural"
+          - Impact-Level: "Low"
+          - Requires-Backup: false
+          - Reversible: true
+          
+          ## Structure Details:
+          - Adds a new column 'criticality' of type 'text' to the 'user_categories' table.
+          - The column has a default value of 'essential'.
+          
+          ## Security Implications:
+          - RLS Status: Enabled
+          - Policy Changes: No
+          - Auth Requirements: User must be authenticated to modify their own categories.
+          
+          ## Performance Impact:
+          - Indexes: None
+          - Triggers: None
+          - Estimated Impact: Low. The operation might take a moment on tables with a very large number of categories.
+          */
+-- Add criticality column to user_categories
+ALTER TABLE public.user_categories
+ADD COLUMN IF NOT EXISTS criticality TEXT DEFAULT 'essential';
+-- Update existing default sub-categories with criticality levels
+-- This part is idempotent and safe to re-run. It uses COALESCE to avoid errors if the column already exists.
+DO $$
+BEGIN
+    -- Critical Expenses
+    UPDATE public.user_categories
+    SET criticality = 'critical'
+    WHERE name IN (
+        'Salaires, traitements et charges', 'Cotisations sociales personnelles',
+        'Loyer & Charges locatives', 'Prêt immobilier (remboursement capital)', 'Charges de copropriété',
+        'Énergie (Électricité, Gaz, Chauffage)', 'Eau et assainissement', 'Assurance habitation/locaux',
+        'Taxe foncière', 'Assurance auto/moto', 'Mutuelle santé', 'Frais de notaire',
+        'Assurance responsabilité civile pro (RC Pro)', 'Intérêts d''emprunts', 'Assurance emprunteur',
+        'Impôt sur le revenu / sur les sociétés', 'Taxe d''habitation', 'Cotisation Foncière des Entreprises (CFE)',
+        'TVA à payer', 'Frais de scolarité et garde', 'Découvert bancaire'
+    );
+    -- Essential Expenses
+    UPDATE public.user_categories
+    SET criticality = 'essential'
+    WHERE name IN (
+        'Honoraires (freelances, experts-comptables)', 'Indemnités (déplacement, repas, km)',
+        'Entretien, réparations et amélioration', 'Carburant & Recharge', 'Entretien, réparations et pièces',
+        'Transport en commun', 'Courses alimentaires', 'Repas en déplacement professionnel',
+        'Téléphonie mobile et fixe', 'Internet (Box) et Abonnements TV', 'Logiciels et applications (SaaS)',
+        'Hébergement web, nom de domaine', 'Frais médicaux (consultations, pharmacie)',
+        'Soins (dentiste, opticien, kiné)', 'Achat de marchandises / matières premières', 'Sous-traitance',
+        'Frais de déplacement professionnel (hors repas)', 'Cotisations et frais professionnels',
+        'Frais bancaires', 'Autres assurances', 'Vêtements et fournitures pour enfants', 'Frais divers et imprévus'
+    );
+    -- Discretionary Expenses
+    UPDATE public.user_categories
+    SET criticality = 'discretionary'
+    WHERE name IN (
+        'Primes, bonus et participations', 'Péage, stationnement et amendes', 'Taxi, VTC, location de véhicule',
+        'Voyages longue distance (billets de train, d''avion)', 'Restaurant, café, bar', 'Livraison de repas à domicile',
+        'Équipements tech (ordinateur, smartphone)', 'Abonnements culturels (Streaming, presse, jeux vidéo)',
+        'Sports (Club, équipement, licence)', 'Sorties (Cinéma, concert, musée, événement)',
+        'Hobbies et passions', 'Vacances et week-ends', 'Cotisations associatives',
+        'Bien-être (Coaching, yoga, cosmétiques)', 'Apport personnel', 'Travaux d''aménagement importants',
+        'Achat de mobilier durable', 'Investissements financiers', 'Marketing et publicité',
+        'Dons et mécénat', 'Activités extrascolaires', 'Versement épargne', 'Épargne retraite (PER)',
+        'Fournitures de bureau', 'Petit équipement', 'Mobilier & Agencement', 'Électroménager',
+        'Décoration & Ambiance', 'Linge de maison', 'Jardin & Extérieur'
+    );
+END $$;

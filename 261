@@ -1,0 +1,30 @@
+/*
+          # Add Currency to Actual Transactions
+          Adds currency-related columns to the `actual_transactions` table.
+
+          ## Query Description: This operation adds `currency` and `original_amount` columns to the `actual_transactions` table. This is a non-destructive change required for multi-currency support.
+          
+          ## Metadata:
+          - Schema-Category: "Structural"
+          - Impact-Level: "Low"
+          - Requires-Backup: false
+          - Reversible: true
+          
+          ## Structure Details:
+          - Table Modified: `actual_transactions`
+          - Columns Added: `currency` (TEXT), `original_amount` (NUMERIC)
+          
+          ## Security Implications:
+          - RLS Status: Unchanged
+          - Policy Changes: No
+          - Auth Requirements: None
+          
+          ## Performance Impact:
+          - Indexes: None
+          - Triggers: None
+          - Estimated Impact: Negligible.
+          */
+
+ALTER TABLE public.actual_transactions
+ADD COLUMN IF NOT EXISTS currency TEXT,
+ADD COLUMN IF NOT EXISTS original_amount NUMERIC;

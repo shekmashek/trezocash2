@@ -1,0 +1,29 @@
+/*
+          # Add Criticality to Categories
+          Adds a `criticality` level to user-created categories to allow for better expense analysis.
+
+          ## Query Description: This operation adds a new column `criticality` to the `user_categories` table. This column will store one of three values: 'critical', 'essential', or 'discretionary'. It defaults to 'essential'. This change is non-destructive and fully reversible.
+          
+          ## Metadata:
+          - Schema-Category: "Structural"
+          - Impact-Level: "Low"
+          - Requires-Backup: false
+          - Reversible: true
+          
+          ## Structure Details:
+          - Table Modified: `user_categories`
+          - Column Added: `criticality` (TEXT, default 'essential')
+          
+          ## Security Implications:
+          - RLS Status: Unchanged
+          - Policy Changes: No
+          - Auth Requirements: None
+          
+          ## Performance Impact:
+          - Indexes: None
+          - Triggers: None
+          - Estimated Impact: Negligible performance impact.
+          */
+
+ALTER TABLE public.user_categories
+ADD COLUMN IF NOT EXISTS criticality TEXT DEFAULT 'essential';

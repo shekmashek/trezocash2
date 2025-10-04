@@ -1,0 +1,195 @@
+import React, { useState, useMemo } from 'react';
+import { X, Send, Trash2, Users } from 'lucide-react';
+import { useData } from '../context/DataContext';
+import { useUI } from '../context/UIContext';
+import { inviteCollaborator, revokeCollaborator } from '../context/actions';
+import Avatar from './Avatar';
+import { supabase } from '../utils/supabase';
+
+const ShareProjectDrawer = ({ isOpen, onClose }) => {
+    const { dataState, dataDispatch } = useData();
+    const { uiState, uiDispatch } = useUI();
+    const { session, projects, collaborators, allProfiles } = dataState;
+    const { activeProjectId } = uiState;
+
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteRole, setInviteRole] = useState('viewer');
+    const [inviteScope, setInviteScope] = useState('all');
+
+    const activeProject = useMemo(() => projects.find(p => p.id === activeProjectId), [projects, activeProjectId]);
+
+    const projectCollaborators = useMemo(() => {
+        if (!activeProjectId) return { active: [], pending: [] };
+        const active = [];
+        const pending = [];
+
+        // Add owner
+        const ownerProfile = allProfiles.find(p => p.id === activeProject?.user_id);
+        if (ownerProfile) {
+            active.push({ ...ownerProfile, role: 'Propriétaire', isOwner: true });
+        }
+
+        collaborators.forEach(c => {
+            if (c.projectIds?.includes(activeProjectId)) {
+                if (c.status === 'accepted') {
+                    const profile = allProfiles.find(p => p.id === c.user_id);
+                    if (profile) {
+                        active.push({ ...profile, role: c.role === 'editor' ? 'Éditeur' : 'Lecteur', collabId: c.id });
+                    }
+                } else if (c.status === 'pending') {
+                    pending.push({ ...c, collabId: c.id });
+                }
+            }
+        });
+        return { active, pending };
+    }, [activeProjectId, collaborators, allProfiles, projects, activeProject]);
+
+    const handleInvite = (e) => {
+        e.preventDefault();
+        if (!inviteEmail.trim()) {
+            uiDispatch({ type: 'ADD_TOAST', payload: { message: "Veuillez saisir un e-mail.", type: 'error' } });
+            return;
+        }
+        inviteCollaborator({ dataDispatch, uiDispatch }, {
+            email: inviteEmail,
+            role: inviteRole,
+            permissionScope: inviteScope,
+            projectIds: [activeProjectId]
+        });
+        setInviteEmail('');
+    };
+
+    const handleRevoke = (collabId, name) => {
+        uiDispatch({
+            type: 'OPEN_CONFIRMATION_MODAL',
+            payload: {
+                title: `Révoquer l'accès de ${name} ?`,
+                message: 'Cette personne perdra l\'accès à ce projet. Cette action est irréversible.',
+                onConfirm: () => revokeCollaborator({ dataDispatch, uiDispatch }, collabId),
+            }
+        });
+    };
+
+    const handleResend = async (invite) => {
+        uiDispatch({ type: 'ADD_TOAST', payload: { message: `Renvoyer l'invitation à ${invite.email}...`, type: 'info' } });
+        
+        const collaboratorRecordForFunction = {
+            id: invite.id,
+            owner_id: invite.ownerId,
+            user_id: invite.userId,
+            email: invite.email,
+            role: invite.role,
+            status: invite.status,
+            project_ids: invite.projectIds,
+            permission_scope: invite.permissionScope
+        };
+
+        const { error } = await supabase.functions.invoke('send-collaboration-invite', {
+            body: { collaboratorRecord: collaboratorRecordForFunction },
+        });
+
+        if (error) {
+            uiDispatch({ type: 'ADD_TOAST', payload: { message: `Erreur lors du renvoi: ${error.message}`, type: 'error' } });
+        } else {
+            uiDispatch({ type: 'ADD_TOAST', payload: { message: `Invitation renvoyée à ${invite.email}.`, type: 'success' } });
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <>
+            <div className="fixed inset-0 bg-black z-40 transition-opacity bg-opacity-60" onClick={onClose}></div>
+            <div className="fixed top-0 right-0 bottom-0 w-full max-w-lg bg-gray-50 shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
+                <div className="flex flex-col h-full">
+                    <div className="flex items-start justify-between p-4 border-b bg-white">
+                        <div>
+                            <h2 className="text-lg font-semibold text-gray-800">Partager "{activeProject?.name}"</h2>
+                            <p className="text-sm text-gray-500">Gérez qui peut voir et modifier ce projet.</p>
+                        </div>
+                        <button onClick={onClose} className="p-2 rounded-full text-gray-500 hover:bg-gray-100"><X className="w-5 h-5" /></button>
+                    </div>
+                    <div className="flex-grow p-6 overflow-y-auto space-y-8">
+                        {/* Invite Form */}
+                        <div className="bg-white p-4 rounded-lg border">
+                            <h3 className="font-semibold text-gray-700 mb-3">Inviter un collaborateur</h3>
+                            <form onSubmit={handleInvite} className="space-y-4">
+                                <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="nom@exemple.com" className="w-full px-3 py-2 border rounded-lg text-sm" required />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1">Rôle</label>
+                                        <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                                            <option value="viewer">Lecteur</option>
+                                            <option value="editor">Éditeur</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1">Permissions</label>
+                                        <select value={inviteScope} onChange={(e) => setInviteScope(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                                            <option value="all">Entrées & Sorties</option>
+                                            <option value="income_only">Entrées seulement</option>
+                                            <option value="expense_only">Sorties seulement</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg flex items-center justify-center gap-2">
+                                    <Send className="w-4 h-4" /> Envoyer l'invitation
+                                </button>
+                            </form>
+                        </div>
+
+                        {/* Active Collaborators */}
+                        <div>
+                            <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2"><Users className="w-5 h-5" /> Équipe du projet</h3>
+                            <div className="space-y-2">
+                                {projectCollaborators.active.map(member => (
+                                    <div key={member.id} className="flex items-center justify-between p-2 bg-white border rounded-lg group">
+                                        <div className="flex items-center gap-3">
+                                            <Avatar name={member.full_name} role={member.role} />
+                                            <div>
+                                                <p className="font-medium text-sm text-gray-800">{member.full_name}</p>
+                                                <p className="text-xs text-gray-500">{member.role}</p>
+                                            </div>
+                                        </div>
+                                        {!member.isOwner && (
+                                            <button onClick={() => handleRevoke(member.collabId, member.full_name)} className="p-1 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Pending Invites */}
+                        {projectCollaborators.pending.length > 0 && (
+                            <div>
+                                <h3 className="font-semibold text-gray-700 mb-3">Invitations en attente</h3>
+                                <div className="space-y-2">
+                                    {projectCollaborators.pending.map(invite => (
+                                        <div key={invite.id} className="flex items-center justify-between p-2 bg-white border rounded-lg group">
+                                            <div>
+                                                <p className="font-medium text-sm text-gray-500 italic">{invite.email}</p>
+                                                <p className="text-xs text-gray-400">{invite.role === 'editor' ? 'Éditeur' : 'Lecteur'}</p>
+                                            </div>
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => handleResend(invite)} className="p-1 text-blue-500 hover:text-blue-700" title="Renvoyer l'invitation">
+                                                    <Send size={16} />
+                                                </button>
+                                                <button onClick={() => handleRevoke(invite.collabId, invite.email)} className="p-1 text-red-500 hover:text-red-700" title="Annuler l'invitation">
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+};
+
+export default ShareProjectDrawer;

@@ -1,0 +1,31 @@
+/*
+          # [Operation Name]
+          Fix VAT Regime Enum
+
+          ## Query Description: [This operation drops and recreates the 'vat_regime_type' ENUM with French values to align with the application's language. It also updates the 'vat_regimes' table to use this new type.]
+          
+          ## Metadata:
+          - Schema-Category: "Data"
+          - Impact-Level: "Medium"
+          - Requires-Backup: true
+          - Reversible: false
+          
+          ## Structure Details:
+          - Drops the existing 'vat_regime_type' ENUM.
+          - Recreates 'vat_regime_type' with 'reel_normal', 'reel_simplifie', 'franchise_en_base'.
+          - Alters the 'vat_regimes' table to use the new ENUM type.
+          
+          ## Security Implications:
+          - RLS Status: Enabled
+          - Policy Changes: No
+          - Auth Requirements: None
+          
+          ## Performance Impact:
+          - Indexes: None
+          - Triggers: None
+          - Estimated Impact: Low, but requires a brief lock on the 'vat_regimes' table.
+          */
+ALTER TABLE public.vat_regimes DROP COLUMN IF EXISTS regime_type;
+DROP TYPE IF EXISTS public.vat_regime_type;
+CREATE TYPE public.vat_regime_type AS ENUM ('reel_normal', 'reel_simplifie', 'franchise_en_base');
+ALTER TABLE public.vat_regimes ADD COLUMN regime_type public.vat_regime_type DEFAULT 'reel_normal'::public.vat_regime_type;

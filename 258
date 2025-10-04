@@ -1,0 +1,46 @@
+/*
+          # Update Default Criticality
+          Sets a default criticality level for existing expense sub-categories based on common financial practice.
+
+          ## Query Description: This operation updates the `criticality` for existing default sub-categories. It sets essential services like rent, salaries, and taxes to 'critical', operational costs to 'essential', and optional expenses like leisure to 'discretionary'. This is a data update and is reversible.
+          
+          ## Metadata:
+          - Schema-Category: "Data"
+          - Impact-Level: "Low"
+          - Requires-Backup: false
+          - Reversible: true
+          
+          ## Structure Details:
+          - Table Modified: `user_categories`
+          
+          ## Security Implications:
+          - RLS Status: Unchanged
+          - Policy Changes: No
+          - Auth Requirements: None
+          
+          ## Performance Impact:
+          - Indexes: None
+          - Triggers: None
+          - Estimated Impact: Minor, one-time update.
+          */
+
+-- Set CRITICAL expenses
+UPDATE public.user_categories
+SET criticality = 'critical'
+WHERE default_id IN (
+    'exp-sub-1-1', 'exp-sub-1-5', 'exp-sub-2-1', 'exp-sub-2-2', 'exp-sub-2-3', 'exp-sub-2-5', 'exp-sub-2-6', 'exp-sub-2-7', 'exp-sub-2-8',
+    'exp-sub-3-3', 'exp-sub-7-1', 'exp-sub-8-2', 'exp-sub-9-6', 'exp-sub-10-1', 'exp-sub-10-3', 'exp-sub-11-1', 'exp-sub-11-2', 'exp-sub-11-3',
+    'exp-sub-11-4', 'exp-sub-12-1', 'exp-sub-15-1', 'exp-sub-15-2', 'exp-sub-15-3', 'exp-sub-15-4', 'exp-sub-15-5', 'exp-sub-15-6', 'exp-sub-15-7',
+    'exp-sub-15-8', 'exp-sub-15-9', 'exp-sub-15-12'
+);
+
+-- Set DISCRETIONARY expenses
+UPDATE public.user_categories
+SET criticality = 'discretionary'
+WHERE default_id IN (
+    'exp-sub-1-3', 'exp-sub-3-4', 'exp-sub-3-6', 'exp-sub-3-7', 'exp-sub-4-2', 'exp-sub-4-3', 'exp-sub-5-5', 'exp-sub-6-1', 'exp-sub-6-2',
+    'exp-sub-6-3', 'exp-sub-6-4', 'exp-sub-6-5', 'exp-sub-6-6', 'exp-sub-7-4', 'exp-sub-8-1', 'exp-sub-8-3', 'exp-sub-8-4', 'exp-sub-8-5',
+    'exp-sub-9-1', 'exp-sub-9-8', 'exp-sub-11-5', 'exp-sub-12-2', 'exp-sub-13-1', 'exp-sub-13-2', 'exp-sub-14-1', 'exp-sub-14-3', 'exp-sub-14-4', 'exp-sub-14-5'
+);
+
+-- All others default to 'essential' which is already set.

@@ -1,0 +1,32 @@
+/*
+          # Ajout du fuseau horaire aux projets
+          Cette opération ajoute une colonne `timezone_offset` à la table `projects` pour permettre une gestion du fuseau horaire par projet.
+
+          ## Query Description: 
+          - Ajoute une colonne `timezone_offset` de type INTEGER à la table `projects`.
+          - Définit une valeur par défaut de 0 (GMT/UTC) pour tous les projets existants et futurs.
+          - Cette modification est non destructive et n'affecte pas les données existantes.
+
+          ## Metadata:
+          - Schema-Category: "Structural"
+          - Impact-Level: "Low"
+          - Requires-Backup: false
+          - Reversible: true (il suffit de supprimer la colonne)
+          
+          ## Structure Details:
+          - Table affectée : `public.projects`
+          - Colonne ajoutée : `timezone_offset` (INTEGER, DEFAULT 0)
+          
+          ## Security Implications:
+          - RLS Status: Inchangé
+          - Policy Changes: Non
+          - Auth Requirements: Non
+          
+          ## Performance Impact:
+          - Indexes: Aucun
+          - Triggers: Aucun
+          - Estimated Impact: Faible. L'ajout d'une colonne avec une valeur par défaut peut prendre un court instant sur de très grandes tables.
+          */
+
+ALTER TABLE public.projects
+ADD COLUMN timezone_offset INTEGER DEFAULT 0;

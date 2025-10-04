@@ -1,0 +1,85 @@
+/*
+          # [Creation] Création du schéma de gestion fiscale
+          Ce script met en place les tables et types nécessaires pour la gestion personnalisée des impôts et taxes.
+
+          ## Query Description: ["Cette opération est structurelle et prépare la base de données pour une nouvelle fonctionnalité. Elle est conçue pour être sûre et ne touchera pas à vos données existantes, même en cas de ré-exécution."]
+          
+          ## Metadata:
+          - Schema-Category: "Structural"
+          - Impact-Level: "Low"
+          - Requires-Backup: false
+          - Reversible: true
+          
+          ## Structure Details:
+          - Crée le type ENUM `tax_base` pour définir la base de calcul d'un impôt.
+          - Crée le type ENUM `tax_declaration_periodicity` pour la fréquence des déclarations.
+          - Crée la table `tax_configs` pour stocker les paramètres de chaque impôt.
+          
+          ## Security Implications:
+          - RLS Status: Enabled
+          - Policy Changes: Yes
+          - Auth Requirements: Les utilisateurs ne peuvent voir et gérer que leurs propres configurations fiscales.
+          
+          ## Performance Impact:
+          - Indexes: Ajout d'index sur `user_id` et `project_id`.
+          - Triggers: Aucun.
+          - Estimated Impact: Faible.
+          */
+
+-- On nettoie d'abord les objets potentiellement existants pour rendre le script ré-exécutable
+DROP TABLE IF EXISTS public.tax_configs CASCADE;
+DROP TYPE IF EXISTS public.tax_base CASCADE;
+DROP TYPE IF EXISTS public.tax_declaration_periodicity CASCADE;
+
+-- Création des types ENUM pour la configuration des taxes
+CREATE TYPE public.tax_base AS ENUM (
+    'revenue',      -- Basé sur le chiffre d'affaires
+    'profit',       -- Basé sur le bénéfice (Revenus - Dépenses)
+    'payroll'       -- Basé sur la masse salariale
+);
+
+CREATE TYPE public.tax_declaration_periodicity AS ENUM (
+    'monthly',
+    'quarterly',
+    'annually'
+);
+
+-- Création de la table pour stocker les configurations de taxes personnalisées par l'utilisateur
+CREATE TABLE public.tax_configs (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    project_id uuid REFERENCES public.projects(id) ON DELETE CASCADE,
+    name character varying NOT NULL,
+    tax_rate numeric NOT NULL CHECK (tax_rate >= 0),
+    calculation_base public.tax_base NOT NULL,
+    declaration_periodicity public.tax_declaration_periodicity NOT NULL,
+    payment_delay_months integer NOT NULL DEFAULT 1 CHECK (payment_delay_months >= 0),
+    is_active boolean NOT NULL DEFAULT true,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT unique_tax_per_project UNIQUE (project_id, name)
+);
+
+-- Activer Row Level Security
+ALTER TABLE public.tax_configs ENABLE ROW LEVEL SECURITY;
+
+-- Créer les policies RLS
+CREATE POLICY "Les utilisateurs peuvent voir leurs propres configurations fiscales"
+ON public.tax_configs FOR SELECT
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Les utilisateurs peuvent insérer leurs propres configurations fiscales"
+ON public.tax_configs FOR INSERT
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Les utilisateurs peuvent mettre à jour leurs propres configurations fiscales"
+ON public.tax_configs FOR UPDATE
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Les utilisateurs peuvent supprimer leurs propres configurations fiscales"
+ON public.tax_configs FOR DELETE
+USING (auth.uid() = user_id);
+
+-- Index pour améliorer les performances des requêtes
+CREATE INDEX ix_tax_configs_user_id ON public.tax_configs(user_id);
+CREATE INDEX ix_tax_configs_project_id ON public.tax_configs(project_id);
