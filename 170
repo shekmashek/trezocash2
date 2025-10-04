@@ -1,0 +1,2 @@
+-- This migration script is intended to create the comments table.
+-- It is safe to run this script multiple times.

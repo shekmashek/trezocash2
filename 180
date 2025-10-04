@@ -1,0 +1,2 @@
+-- This migration script is intended to add a project ID to notes.
+-- It is safe to run this script multiple times.

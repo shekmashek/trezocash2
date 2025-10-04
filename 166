@@ -1,0 +1,2 @@
+-- This migration script is intended to add superadmin features.
+-- It is safe to run this script multiple times.

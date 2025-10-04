@@ -1,0 +1,2 @@
+-- This migration script is intended to add an end date to projects.
+-- It is safe to run this script multiple times.

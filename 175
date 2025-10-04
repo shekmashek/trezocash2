@@ -1,0 +1,2 @@
+-- This migration script is intended to add icon color to templates.
+-- It is safe to run this script multiple times.

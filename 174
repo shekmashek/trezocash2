@@ -1,0 +1,2 @@
+-- This migration script is intended to fix profile RLS recursion issues.
+-- It is safe to run this script multiple times.
