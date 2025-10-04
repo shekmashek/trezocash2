@@ -1,0 +1,1 @@
+-- This script is protected and cannot be modified.

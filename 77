@@ -1,0 +1,309 @@
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useData } from '../context/DataContext';
+import { useUI } from '../context/UIContext';
+import { supabase } from '../utils/supabase';
+import { Save, User, Shield, CreditCard, FileText, HelpCircle, LogOut, Cog, Users, FolderKanban, Wallet, Archive, Globe, LayoutTemplate, Plus, Trash2, FolderCog, Lock, LayoutDashboard, ListChecks, Table, AreaChart, Calendar, Layers, PieChart, BookOpen, Receipt, Hash, Share2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate, NavLink, useLocation } from 'react-router-dom';
+import SubscriptionBadge from './SubscriptionBadge';
+import ProjectSwitcher from './ProjectSwitcher';
+import StaticAppLogo from './StaticAppLogo';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from './LanguageSwitcher';
+
+const pageConfig = {
+  '/app/dashboard': { titleKey: 'nav.dashboard', icon: LayoutDashboard },
+  '/app/budget': { titleKey: 'nav.budget', icon: ListChecks },
+  '/app/trezo': { titleKey: 'nav.trezo', icon: Table },
+  '/app/flux': { titleKey: 'nav.flux', icon: AreaChart },
+  '/app/echeancier': { titleKey: 'nav.echeancier', icon: Calendar },
+  '/app/scenarios': { titleKey: 'nav.scenarios', icon: Layers },
+  '/app/analyse': { titleKey: 'nav.analyse', icon: PieChart },
+  '/app/journal-budget': { title: 'Journal du Budget', icon: BookOpen },
+  '/app/journal-paiements': { title: 'Journal des Paiements', icon: Receipt },
+  '/app/parametres-projet': { title: 'Paramètres du Projet', icon: FolderCog },
+  '/app/templates': { title: 'Mes Modèles', icon: LayoutTemplate },
+  '/app/provisions': { title: 'Suivi des Provisions', icon: Lock },
+  '/app/categories': { title: 'Gestion des Catégories', icon: FolderKanban },
+  '/app/tiers': { title: 'Gestion des Tiers', icon: Users },
+  '/app/comptes': { title: 'Comptes de Trésorerie', icon: Wallet },
+  '/app/archives': { title: 'Archives', icon: Archive },
+  '/app/tva': { title: 'Gestion de la TVA', icon: Hash },
+  '/app/fiscalite': { title: 'Gestion de la Fiscalité', icon: Hash },
+  '/app/profil': { title: 'Mon Profil', icon: User },
+  '/app/securite': { title: 'Mot de Passe et Sécurité', icon: Shield },
+  '/app/abonnement': { title: 'Mon Abonnement', icon: CreditCard },
+  '/app/delete-account': { title: 'Supprimer mon Compte', icon: Trash2 },
+  '/app/collaborateurs': { title: 'Collaborateurs', icon: Users },
+};
+
+const SettingsLink = ({ item, onClick }) => {
+  const Icon = item.icon;
+  return (
+    <li title={item.label}>
+      <button 
+        onClick={onClick} 
+        disabled={item.disabled}
+        className={`flex items-center w-full h-10 px-4 rounded-lg text-sm font-medium transition-colors text-gray-600 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed`}
+      >
+        <Icon className={`w-5 h-5 shrink-0 ${item.color}`} />
+        <span className={`ml-4`}>
+          {item.label}
+        </span>
+      </button>
+    </li>
+  );
+};
+
+const SubHeader = () => {
+  const { dataState } = useData();
+  const { uiState, uiDispatch } = useUI();
+  const { profile, session, taxConfigs } = dataState;
+  const { activeProjectId } = uiState;
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { t } = useTranslation();
+
+  const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
+  const avatarMenuRef = useRef(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const settingsPopoverRef = useRef(null);
+
+  const isConsolidated = activeProjectId === 'consolidated' || activeProjectId?.startsWith('consolidated_view_');
+
+  const currentPage = useMemo(() => {
+      const path = location.pathname;
+      if (path.startsWith('/app/fiscalite/')) {
+          const taxId = path.split('/')[3];
+          const tax = taxConfigs.find(t => t.id === taxId);
+          return { title: `Paramètres: ${tax?.name || 'Taxe'}`, icon: Hash };
+      }
+      const config = Object.entries(pageConfig).find(([key, _]) => path.startsWith(key));
+      return config ? { ...config[1], title: t(config[1].titleKey) || config[1].title } : null;
+  }, [location.pathname, taxConfigs, t]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (avatarMenuRef.current && !avatarMenuRef.current.contains(event.target)) setIsAvatarMenuOpen(false);
+      if (settingsPopoverRef.current && !settingsPopoverRef.current.contains(event.target)) setIsSettingsOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      uiDispatch({ type: 'ADD_TOAST', payload: { message: `Erreur lors de la déconnexion: ${error.message}`, type: 'error' } });
+    }
+  };
+
+  const handleNavigate = (path) => {
+    navigate(path);
+    setIsSettingsOpen(false);
+    setIsAvatarMenuOpen(false);
+  };
+
+  const handleShare = () => {
+    navigate('/app/collaborateurs');
+  };
+
+  const menuItems = [
+    { title: 'Mon profil', icon: User, path: '/app/profil' },
+    { title: 'Mot de passe et sécurité', icon: Shield, path: '/app/securite' },
+    { title: 'Mon abonnement', icon: CreditCard, path: '/app/abonnement' },
+    { title: 'Factures', icon: FileText, path: '/app/factures' },
+    { title: 'Supprimer mon compte', icon: Trash2, path: '/app/delete-account', isDestructive: true },
+    { title: 'Centre d\'aide', icon: HelpCircle, path: '/app/aide' },
+  ];
+
+  const settingsItems = [
+    { id: '/app/parametres-projet', label: 'Paramètres du Projet', icon: FolderCog, color: 'text-blue-500' },
+    { id: '/app/collaborateurs', label: 'Collaborateurs', icon: Users, color: 'text-purple-500' },
+    { id: '/app/templates', label: 'Mes Modèles', icon: LayoutTemplate, color: 'text-indigo-500' },
+    { id: '/app/provisions', label: 'Suivi des Provisions', icon: Lock, color: 'text-orange-500' },
+    { id: '/app/categories', label: 'Catégories', icon: FolderKanban, color: 'text-orange-500' },
+    { id: '/app/tiers', label: 'Tiers', icon: Users, color: 'text-pink-500' },
+    { id: '/app/comptes', label: 'Comptes', icon: Wallet, color: 'text-teal-500' },
+    { id: '/app/archives', label: 'Archives', icon: Archive, color: 'text-slate-500' },
+  ];
+
+  const navItems = [
+    { labelKey: 'nav.dashboard', path: '/app/dashboard', icon: LayoutDashboard },
+    { labelKey: 'nav.budget', path: '/app/budget', icon: ListChecks },
+    { labelKey: 'nav.trezo', path: '/app/trezo', icon: Table },
+    { labelKey: 'nav.flux', path: '/app/flux', icon: AreaChart },
+    { labelKey: 'nav.echeancier', path: '/app/echeancier', icon: Calendar },
+    { labelKey: 'nav.scenarios', path: '/app/scenarios', icon: Layers },
+    { labelKey: 'nav.analyse', path: '/app/analyse', icon: PieChart },
+  ];
+
+  const handleSettingsItemClick = (itemId) => {
+    if (itemId.startsWith('/app/')) {
+        handleNavigate(itemId);
+    } else {
+      uiDispatch({ type: 'SET_ACTIVE_SETTINGS_DRAWER', payload: itemId });
+    }
+    setIsSettingsOpen(false);
+  };
+  
+  const subscriptionDetails = useMemo(() => {
+    if (!profile) return null;
+    const status = profile.subscriptionStatus;
+    if (status === 'lifetime') return 'Statut : Accès à Vie';
+    if (status === 'active') {
+        return 'Statut : Abonnement Pro';
+    }
+    return null;
+  }, [profile]);
+
+  return (
+    <>
+      <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
+        <div className="w-full px-6">
+          <div className="py-2 grid grid-cols-[auto_1fr_auto] w-full items-center gap-6">
+            {/* Left Group */}
+            <div className="flex items-center gap-4">
+              <NavLink to="/app/dashboard" className="flex items-center gap-2 text-gray-700 hover:text-blue-600">
+                <StaticAppLogo className="w-6 h-6" />
+              </NavLink>
+              <div className="h-6 w-px bg-gray-300"></div>
+              <div className="w-auto min-w-[10rem] max-w-xs rounded-lg transition-all">
+                <ProjectSwitcher />
+              </div>
+              <button
+                onClick={handleShare}
+                disabled={isConsolidated}
+                className="p-2 text-gray-600 hover:text-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Partager ce projet"
+              >
+                <Share2 size={20} />
+              </button>
+            </div>
+
+            {/* Center Group: Page Title */}
+            <div className="flex items-center justify-center gap-3">
+              {currentPage && (
+                <>
+                  <currentPage.icon className="w-6 h-6 text-gray-500" />
+                  <h1 className="text-xl font-semibold text-gray-800">{currentPage.title}</h1>
+                </>
+              )}
+            </div>
+
+            {/* Right Group */}
+            <div className="flex items-center justify-end gap-4">
+                <nav className="flex items-center gap-1">
+                    {navItems.map(item => (
+                        <NavLink
+                            key={item.labelKey}
+                            to={item.path}
+                            className={({ isActive }) =>
+                                `p-2 rounded-md transition-colors ${
+                                isActive
+                                    ? 'bg-gray-200 text-blue-600'
+                                    : 'text-gray-600 hover:bg-gray-200'
+                                }`
+                            }
+                            title={t(item.labelKey)}
+                        >
+                            <item.icon size={20} />
+                        </NavLink>
+                    ))}
+                </nav>
+                <div className="h-6 w-px bg-gray-300"></div>
+                <div className="flex items-center gap-2">
+                    <div className="relative" ref={settingsPopoverRef}>
+                        <button
+                            onClick={() => setIsSettingsOpen(p => !p)}
+                            className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+                            title="Paramètres avancés"
+                        >
+                            <Cog className="w-5 h-5" />
+                        </button>
+                        <AnimatePresence>
+                            {isSettingsOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                                    className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg border z-20"
+                                >
+                                    <div className="p-2">
+                                      <ul className="space-y-1">
+                                        {settingsItems.map(item => (
+                                          <SettingsLink 
+                                            key={item.id} 
+                                            item={item} 
+                                            onClick={() => handleSettingsItemClick(item.id)} 
+                                          />
+                                        ))}
+                                      </ul>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                    <LanguageSwitcher />
+                    <div className="flex items-center gap-2">
+                      <SubscriptionBadge />
+                      <div className="relative" ref={avatarMenuRef}>
+                          <button 
+                              onClick={() => setIsAvatarMenuOpen(p => !p)}
+                              className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+                              title="Profil utilisateur"
+                          >
+                              <User className="w-5 h-5" />
+                          </button>
+                          <AnimatePresence>
+                              {isAvatarMenuOpen && (
+                                  <motion.div
+                                      initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                                      exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                                      className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg border z-20"
+                                  >
+                                      <div className="px-4 py-3 border-b">
+                                          <p className="text-sm font-semibold text-gray-800">{profile?.fullName || 'Utilisateur'}</p>
+                                          <p className="text-xs text-gray-500 truncate">{session?.user?.email}</p>
+                                          {subscriptionDetails && <p className="text-xs font-semibold text-blue-600 mt-1">{subscriptionDetails}</p>}
+                                      </div>
+                                      <div className="p-1">
+                                          {menuItems.map((item) => (
+                                              <button 
+                                                  key={item.title}
+                                                  onClick={() => handleNavigate(item.path)}
+                                                  className={`w-full text-left flex items-center gap-3 px-3 py-2 text-sm rounded-md ${
+                                                      item.isDestructive 
+                                                      ? 'text-red-600 hover:bg-red-50' 
+                                                      : 'text-gray-700 hover:bg-gray-100'
+                                                  }`}
+                                              >
+                                                  <item.icon className="w-4 h-4" />
+                                                  <span>{item.title}</span>
+                                              </button>
+                                          ))}
+                                          <div className="h-px bg-gray-200 my-1 mx-1"></div>
+                                          <button 
+                                              onClick={handleLogout}
+                                              className="w-full text-left flex items-center gap-3 px-3 py-2 text-sm text-red-600 rounded-md hover:bg-red-50"
+                                          >
+                                              <LogOut className="w-4 h-4" />
+                                              <span>Se déconnecter</span>
+                                          </button>
+                                      </div>
+                                  </motion.div>
+                              )}
+                          </AnimatePresence>
+                      </div>
+                    </div>
+                </div>
+            </div>
+          </div>
+        </div>
+      </header>
+    </>
+  );
+};
+
+export default SubHeader;
