@@ -1,0 +1,243 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../utils/supabase';
+import TrezocashLogo from './TrezocashLogo';
+import { LogIn, UserPlus, Loader, ArrowLeft, Mail, Lock, User, Phone, Eye, EyeOff } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const AuthView = ({ initialMode = 'login', onBack }) => {
+  const [step, setStep] = useState('email');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    setStep(initialMode === 'login' ? 'email' : 'signup');
+  }, [initialMode]);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setMessage('');
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    } catch (error) {
+      setError('Adresse e-mail ou mot de passe invalide.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignup = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setMessage('');
+    try {
+      if (!fullName.trim()) {
+        throw new Error("Le nom complet est requis.");
+      }
+
+      const referralCode = localStorage.getItem('referral_code');
+      const options = {
+          data: {
+              full_name: fullName,
+              phone: phone,
+          }
+      };
+      if (referralCode) {
+          options.data.referral_code = referralCode;
+      }
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: options
+      });
+      
+      if (error) {
+        if (error.message.includes("duplicate key")) throw new Error("Un utilisateur avec cet e-mail existe déjà.");
+        if (error.message.includes("Password should be at least 6 characters")) throw new Error("Le mot de passe doit faire au moins 6 caractères.");
+        throw error;
+      }
+
+      if (data.session) {
+        // Email confirmation is OFF. User is logged in.
+        localStorage.setItem('isNewSignup', 'true');
+        localStorage.removeItem('referral_code');
+        // The onAuthStateChange listener in DataContext will handle the rest.
+      } else if (data.user) {
+        // Email confirmation is ON.
+        setMessage("Inscription réussie ! Veuillez consulter votre boîte de réception pour confirmer votre adresse e-mail.");
+        localStorage.removeItem('referral_code');
+      }
+
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const variants = {
+    enter: { opacity: 0, y: 20 },
+    center: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -20 },
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <TrezocashLogo className="w-16 h-16 mx-auto" />
+        </div>
+        
+        <div className="bg-white p-8 rounded-xl shadow-lg border relative min-h-[480px]">
+          <button onClick={onBack} className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 transition-colors" title="Retour">
+            <ArrowLeft size={20} />
+          </button>
+          
+          <AnimatePresence mode="wait">
+            {step === 'email' && (
+              <motion.div key="email" variants={variants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
+                <form onSubmit={(e) => { e.preventDefault(); if(email) setStep('password'); }} className="space-y-6">
+                  <div className="relative">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-center text-lg"
+                      placeholder="Email"
+                      required
+                      autoFocus
+                    />
+                  </div>
+                  <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-full transition-colors">
+                    Suivant
+                  </button>
+                </form>
+                <div className="flex items-center my-6">
+                  <hr className="flex-grow border-t" />
+                  <span className="px-4 text-sm text-gray-500">ou</span>
+                  <hr className="flex-grow border-t" />
+                </div>
+                <button onClick={() => setStep('signup')} className="w-full border-2 border-blue-600 hover:bg-blue-50 text-blue-600 font-bold py-3 px-4 rounded-full transition-colors">
+                  Ouvrir un compte
+                </button>
+              </motion.div>
+            )}
+
+            {step === 'password' && (
+              <motion.div key="password" variants={variants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
+                <div className="text-center mb-4">
+                  <p className="text-sm text-gray-600">{email}</p>
+                  <button onClick={() => setStep('email')} className="text-xs text-blue-600 hover:underline">Modifier</button>
+                </div>
+                <form onSubmit={handleLogin} className="space-y-6">
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-center text-lg"
+                      placeholder="Mot de passe"
+                      required
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                  <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-full transition-colors disabled:bg-gray-400 flex items-center justify-center gap-2">
+                    {loading ? <Loader className="animate-spin" /> : <LogIn size={18} />}
+                    <span>{loading ? 'Connexion...' : 'Se connecter'}</span>
+                  </button>
+                </form>
+              </motion.div>
+            )}
+
+            {step === 'signup' && (
+              <motion.div key="signup" variants={variants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
+                 <h2 className="text-xl font-bold text-center text-gray-800 mb-6">Créer votre compte</h2>
+                 <form onSubmit={handleSignup} className="space-y-4">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Nom complet *"
+                      required
+                    />
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Email *"
+                      required
+                    />
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Numéro de téléphone (optionnel)"
+                    />
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Mot de passe *"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                  <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-full transition-colors disabled:bg-gray-400 flex items-center justify-center gap-2">
+                    {loading ? <Loader className="animate-spin" /> : <UserPlus size={18} />}
+                    <span>{loading ? 'Création...' : 'Créer le compte'}</span>
+                  </button>
+                 </form>
+                 <p className="text-center text-xs text-gray-500 mt-4">
+                    Vous avez déjà un compte ? <button onClick={() => setStep('email')} className="font-semibold text-blue-600 hover:underline">Se connecter</button>
+                 </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {(error || message) && (
+            <div className="absolute bottom-8 left-8 right-8 text-center">
+                {error && <p className="text-xs text-red-600 bg-red-50 p-2 rounded-md">{error}</p>}
+                {message && <p className="text-xs text-green-600 bg-green-50 p-2 rounded-md">{message}</p>}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AuthView;
